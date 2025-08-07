@@ -387,44 +387,46 @@
         </div>
 
         <div id="chartsContainer" class="charts-container">
-            <!-- Monthly Chart -->
+            <!-- Monthly Revenue -->
             <div class="chart-card">
-                <div class="chart-controls">
-                    <h3>📈 Monthly Revenue Trend</h3>
-                    <button id="downloadBtn" class="download-btn">📥 Download CSV</button>
-                </div>
+                <h3>📈 Monthly Revenue Trend</h3>
                 <div class="chart-container">
                     <canvas id="monthlyChart"></canvas>
                 </div>
             </div>
-
-            <!-- Quarterly Chart -->
+            <!-- Monthly YoY -->
             <div class="chart-card">
-                <div class="chart-controls">
-                    <h3>📊 Quarterly Revenue Trend</h3>
+                <h3>📈 Monthly YoY Change</h3>
+                <div class="chart-container">
+                    <canvas id="monthlyYoYChart"></canvas>
                 </div>
+            </div>
+            <!-- Quarterly Revenue -->
+            <div class="chart-card">
+                <h3>📊 Quarterly Revenue Trend</h3>
                 <div class="chart-container">
                     <canvas id="quarterlyChart"></canvas>
                 </div>
             </div>
-
-            <!-- Yearly Chart -->
+            <!-- Quarterly YoY -->
             <div class="chart-card">
-                <div class="chart-controls">
-                    <h3>📅 Yearly Revenue Trend</h3>
+                <h3>📊 Quarterly YoY Change</h3>
+                <div class="chart-container">
+                    <canvas id="quarterlyYoYChart"></canvas>
                 </div>
+            </div>
+            <!-- Yearly Revenue -->
+            <div class="chart-card">
+                <h3>📅 Yearly Revenue Trend</h3>
                 <div class="chart-container">
                     <canvas id="yearlyChart"></canvas>
                 </div>
             </div>
-
-            <!-- YoY Change Chart -->
+            <!-- Yearly YoY -->
             <div class="chart-card">
-                <div class="chart-controls">
-                    <h3>📈 YoY Change Trend</h3>
-                </div>
+                <h3>📅 Yearly YoY Change</h3>
                 <div class="chart-container">
-                    <canvas id="yoyChart"></canvas>
+                    <canvas id="yearlyYoYChart"></canvas>
                 </div>
             </div>
         </div>
@@ -455,7 +457,7 @@
     </div>
 
     <script>
-        let monthlyChart, quarterlyChart, yearlyChart, yoyChart;
+        let monthlyChart, monthlyYoYChart, quarterlyChart, quarterlyYoYChart, yearlyChart, yearlyYoYChart;
         let allResults1 = [], allResults2 = [];
 
         function toMinguoYear(year) {
@@ -571,7 +573,6 @@
             const monthlyData = months.map(([year, month]) => {
                 const r1 = results1.find(r => r && r.year === year && r.month === month);
                 const r2 = results2.find(r => r && r.year === year && r.month === month);
-
                 return {
                     date: `${year}-${String(month).padStart(2, '0')}`,
                     revenue1: r1?.revenue ?? null,
@@ -586,26 +587,51 @@
                 const q = Math.ceil(parseInt(d.date.split('-')[1]) / 3);
                 const year = d.date.split('-')[0];
                 const key = `${year}Q${q}`;
-                if (!quarterlyData[key]) quarterlyData[key] = { revenue1: 0, revenue2: 0 };
+                if (!quarterlyData[key]) quarterlyData[key] = { revenue1: 0, revenue2: 0, lastYearRevenue1: 0, lastYearRevenue2: 0 };
                 if (d.revenue1 !== null) quarterlyData[key].revenue1 += d.revenue1;
                 if (d.revenue2 !== null) quarterlyData[key].revenue2 += d.revenue2;
             });
 
-            const quarterlyArray = Object.entries(quarterlyData)
-                .map(([key, q]) => ({ date: key, revenue1: q.revenue1, revenue2: q.revenue2 }))
-                .sort((a, b) => a.date.localeCompare(b.date));
+            Object.keys(quarterlyData).forEach(key => {
+                const [year, q] = key.split('Q');
+                const lastYearKey = `${parseInt(year) - 1}Q${q}`;
+                if (quarterlyData[lastYearKey]) {
+                    quarterlyData[key].lastYearRevenue1 = quarterlyData[lastYearKey].revenue1;
+                    quarterlyData[key].lastYearRevenue2 = quarterlyData[lastYearKey].revenue2;
+                }
+            });
+
+            const quarterlyArray = Object.entries(quarterlyData).map(([key, q]) => ({
+                date: key,
+                revenue1: q.revenue1,
+                revenue2: q.revenue2,
+                yoy1: q.lastYearRevenue1 > 0 ? ((q.revenue1 - q.lastYearRevenue1) / q.lastYearRevenue1) * 100 : null,
+                yoy2: q.lastYearRevenue2 > 0 ? ((q.revenue2 - q.lastYearRevenue2) / q.lastYearRevenue2) * 100 : null,
+            })).sort((a, b) => a.date.localeCompare(b.date));
 
             const yearlyData = {};
             monthlyData.forEach(d => {
                 const year = d.date.split('-')[0];
-                if (!yearlyData[year]) yearlyData[year] = { revenue1: 0, revenue2: 0 };
+                if (!yearlyData[year]) yearlyData[year] = { revenue1: 0, revenue2: 0, lastYearRevenue1: 0, lastYearRevenue2: 0 };
                 if (d.revenue1 !== null) yearlyData[year].revenue1 += d.revenue1;
                 if (d.revenue2 !== null) yearlyData[year].revenue2 += d.revenue2;
             });
+            
+            Object.keys(yearlyData).forEach(year => {
+                const lastYear = parseInt(year) - 1;
+                if (yearlyData[lastYear]) {
+                    yearlyData[year].lastYearRevenue1 = yearlyData[lastYear].revenue1;
+                    yearlyData[year].lastYearRevenue2 = yearlyData[lastYear].revenue2;
+                }
+            });
 
-            const yearlyArray = Object.entries(yearlyData)
-                .map(([year, y]) => ({ date: year, revenue1: y.revenue1, revenue2: y.revenue2 }))
-                .sort((a, b) => a.date - b.date);
+            const yearlyArray = Object.entries(yearlyData).map(([year, y]) => ({
+                date: year,
+                revenue1: y.revenue1,
+                revenue2: y.revenue2,
+                yoy1: y.lastYearRevenue1 > 0 ? ((y.revenue1 - y.lastYearRevenue1) / y.lastYearRevenue1) * 100 : null,
+                yoy2: y.lastYearRevenue2 > 0 ? ((y.revenue2 - y.lastYearRevenue2) / y.lastYearRevenue2) * 100 : null,
+            })).sort((a, b) => a.date - b.date);
 
             return { monthlyData, quarterlyArray, yearlyArray };
         }
@@ -614,83 +640,42 @@
             const n1 = name1 || "Company 1";
             const n2 = name2 || "Company 2";
 
-            if (monthlyChart) monthlyChart.destroy();
-            if (quarterlyChart) quarterlyChart.destroy();
-            if (yearlyChart) yearlyChart.destroy();
-            if (yoyChart) yoyChart.destroy();
+            const charts = [monthlyChart, monthlyYoYChart, quarterlyChart, quarterlyYoYChart, yearlyChart, yearlyYoYChart];
+            charts.forEach(chart => { if(chart) chart.destroy(); });
 
-            const mCtx = document.getElementById('monthlyChart').getContext('2d');
-            monthlyChart = new Chart(mCtx, {
-                type: 'line',
-                data: {
-                    labels: data.monthlyData.map(d => d.date),
-                    datasets: [
-                        {
-                            label: n1,
-                            data: data.monthlyData.map(d => d.revenue1),
-                            borderColor: '#667eea',
-                            backgroundColor: 'rgba(102, 126, 234, 0.1)',
-                            borderWidth: 3,
-                            fill: true,
-                            tension: 0.4
-                        },
-                        {
-                            label: n2,
-                            data: data.monthlyData.map(d => d.revenue2),
-                            borderColor: '#3498db',
-                            backgroundColor: 'rgba(52, 152, 219, 0.1)',
-                            borderWidth: 3,
-                            fill: true,
-                            tension: 0.4,
-                            borderDash: [5, 5]
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: { y: { beginAtZero: true, ticks: { callback: value => value.toLocaleString() + 'M' } } }
-                }
-            });
+            const createChart = (ctx, type, labels, datasets) => new Chart(ctx, { type, data: { labels, datasets }, options: { responsive: true, maintainAspectRatio: false } });
+            const createLineChart = (ctx, labels, datasets) => createChart(ctx, 'line', labels, datasets);
+            const createBarChart = (ctx, labels, datasets) => createChart(ctx, 'bar', labels, datasets);
 
-            const qCtx = document.getElementById('quarterlyChart').getContext('2d');
-            quarterlyChart = new Chart(qCtx, {
-                type: 'bar',
-                data: {
-                    labels: data.quarterlyArray.map(d => d.date),
-                    datasets: [
-                        { label: n1, data: data.quarterlyArray.map(d => d.revenue1), backgroundColor: 'rgba(102, 126, 234, 0.7)' },
-                        { label: n2, data: data.quarterlyArray.map(d => d.revenue2), backgroundColor: 'rgba(52, 152, 219, 0.7)' }
-                    ]
-                },
-                options: { responsive: true, maintainAspectRatio: false }
-            });
+            // Monthly
+            monthlyChart = createBarChart(document.getElementById('monthlyChart').getContext('2d'), data.monthlyData.map(d => d.date), [
+                { label: n1, data: data.monthlyData.map(d => d.revenue1), backgroundColor: 'rgba(102, 126, 234, 0.7)' },
+                { label: n2, data: data.monthlyData.map(d => d.revenue2), backgroundColor: 'rgba(52, 152, 219, 0.7)' }
+            ]);
+            monthlyYoYChart = createLineChart(document.getElementById('monthlyYoYChart').getContext('2d'), data.monthlyData.map(d => d.date), [
+                { label: `${n1} YoY %`, data: data.monthlyData.map(d => d.yoy1), borderColor: '#e74c3c', backgroundColor: 'rgba(231, 76, 60, 0.1)', borderWidth: 2, fill: true },
+                { label: `${n2} YoY %`, data: data.monthlyData.map(d => d.yoy2), borderColor: '#f39c12', backgroundColor: 'rgba(243, 156, 18, 0.1)', borderWidth: 2, fill: true, borderDash: [5, 5] }
+            ]);
 
-            const yCtx = document.getElementById('yearlyChart').getContext('2d');
-            yearlyChart = new Chart(yCtx, {
-                type: 'bar',
-                data: {
-                    labels: data.yearlyArray.map(d => d.date),
-                    datasets: [
-                        { label: n1, data: data.yearlyArray.map(d => d.revenue1), backgroundColor: 'rgba(102, 126, 234, 0.7)' },
-                        { label: n2, data: data.yearlyArray.map(d => d.revenue2), backgroundColor: 'rgba(52, 152, 219, 0.7)' }
-                    ]
-                },
-                options: { responsive: true, maintainAspectRatio: false }
-            });
+            // Quarterly
+            quarterlyChart = createBarChart(document.getElementById('quarterlyChart').getContext('2d'), data.quarterlyArray.map(d => d.date), [
+                { label: n1, data: data.quarterlyArray.map(d => d.revenue1), backgroundColor: 'rgba(102, 126, 234, 0.7)' },
+                { label: n2, data: data.quarterlyArray.map(d => d.revenue2), backgroundColor: 'rgba(52, 152, 219, 0.7)' }
+            ]);
+            quarterlyYoYChart = createLineChart(document.getElementById('quarterlyYoYChart').getContext('2d'), data.quarterlyArray.map(d => d.date), [
+                { label: `${n1} YoY %`, data: data.quarterlyArray.map(d => d.yoy1), borderColor: '#e74c3c', backgroundColor: 'rgba(231, 76, 60, 0.1)', borderWidth: 2, fill: true },
+                { label: `${n2} YoY %`, data: data.quarterlyArray.map(d => d.yoy2), borderColor: '#f39c12', backgroundColor: 'rgba(243, 156, 18, 0.1)', borderWidth: 2, fill: true, borderDash: [5, 5] }
+            ]);
 
-            const yoyCtx = document.getElementById('yoyChart').getContext('2d');
-            yoyChart = new Chart(yoyCtx, {
-                type: 'line',
-                data: {
-                    labels: data.monthlyData.map(d => d.date),
-                    datasets: [
-                        { label: `${n1} YoY %`, data: data.monthlyData.map(d => d.yoy1), borderColor: '#e74c3c', backgroundColor: 'rgba(231, 76, 60, 0.1)', borderWidth: 3, fill: true, tension: 0.4 },
-                        { label: `${n2} YoY %`, data: data.monthlyData.map(d => d.yoy2), borderColor: '#f39c12', backgroundColor: 'rgba(243, 156, 18, 0.1)', borderWidth: 3, fill: true, tension: 0.4, borderDash: [5, 5] }
-                    ]
-                },
-                options: { responsive: true, maintainAspectRatio: false }
-            });
+            // Yearly
+            yearlyChart = createBarChart(document.getElementById('yearlyChart').getContext('2d'), data.yearlyArray.map(d => d.date), [
+                { label: n1, data: data.yearlyArray.map(d => d.revenue1), backgroundColor: 'rgba(102, 126, 234, 0.7)' },
+                { label: n2, data: data.yearlyArray.map(d => d.revenue2), backgroundColor: 'rgba(52, 152, 219, 0.7)' }
+            ]);
+            yearlyYoYChart = createLineChart(document.getElementById('yearlyYoYChart').getContext('2d'), data.yearlyArray.map(d => d.date), [
+                { label: `${n1} YoY %`, data: data.yearlyArray.map(d => d.yoy1), borderColor: '#e74c3c', backgroundColor: 'rgba(231, 76, 60, 0.1)', borderWidth: 2, fill: true },
+                { label: `${n2} YoY %`, data: data.yearlyArray.map(d => d.yoy2), borderColor: '#f39c12', backgroundColor: 'rgba(243, 156, 18, 0.1)', borderWidth: 2, fill: true, borderDash: [5, 5] }
+            ]);
 
             document.getElementById('toggleCompany1').onchange = updateChartVisibility;
             document.getElementById('toggleCompany2').onchange = updateChartVisibility;
@@ -700,7 +685,7 @@
         function updateChartVisibility() {
             const show1 = document.getElementById('toggleCompany1').checked;
             const show2 = document.getElementById('companyCode2').value.trim() && document.getElementById('toggleCompany2').checked;
-            [monthlyChart, quarterlyChart, yearlyChart, yoyChart].forEach(chart => {
+            [monthlyChart, monthlyYoYChart, quarterlyChart, quarterlyYoYChart, yearlyChart, yearlyYoYChart].forEach(chart => {
                 if (chart) {
                     chart.data.datasets[0].hidden = !show1;
                     if (chart.data.datasets[1]) chart.data.datasets[1].hidden = !show2;
@@ -785,16 +770,31 @@
             const loadingDiv = document.getElementById('loading');
             const logContainer = document.getElementById('logContainer');
             const fetchBtn = document.getElementById('fetchBtn');
+            const globalControls = document.getElementById('globalToggleControls');
+            const toggleCompany1Label = document.getElementById('toggleCompany1Label');
+            const toggleCompany2Label = document.getElementById('toggleCompany2Label');
+            const toggleCompany2Switch = document.getElementById('toggleCompany2').parentElement;
 
+            // Reset UI state before fetching
             loadingDiv.style.display = 'block';
             logContainer.innerHTML = '';
             logContainer.style.display = 'block';
             fetchBtn.disabled = true;
+            globalControls.style.display = 'none';
             document.getElementById('chartsContainer').style.display = 'none';
             document.getElementById('dataTableContainer').style.display = 'none';
             document.getElementById('companyName1').style.display = 'none';
             document.getElementById('companyName2').style.display = 'none';
             clearError();
+
+            // Reset toggle labels and visibility
+            toggleCompany1Label.textContent = 'Company 1';
+            toggleCompany2Label.textContent = 'Company 2';
+            const hasCompany2 = code2 !== '';
+            toggleCompany2Switch.style.display = hasCompany2 ? 'inline-block' : 'none';
+            toggleCompany2Label.style.display = hasCompany2 ? 'inline-block' : 'none';
+            document.getElementById('toggleCompany2').checked = hasCompany2;
+
 
             try {
                 const createFetchPromise = (code, y, m, index) => new Promise(resolve => setTimeout(() => {
@@ -819,16 +819,15 @@
                 if (name1) {
                     document.getElementById('companyName1').textContent = `${name1} (${code1})`;
                     document.getElementById('companyName1').style.display = 'inline-block';
-                    document.getElementById('toggleCompany1Label').textContent = name1;
+                    toggleCompany1Label.textContent = name1;
                 }
                 if (name2) {
                     document.getElementById('companyName2').textContent = `${name2} (${code2})`;
                     document.getElementById('companyName2').style.display = 'inline-block';
-                    document.getElementById('toggleCompany2Label').textContent = name2;
+                    toggleCompany2Label.textContent = name2;
                 }
 
-                // Show global controls
-                document.getElementById('globalToggleControls').style.display = 'flex';
+                globalControls.style.display = 'flex';
 
                 const processed = processComparisonData(allResults1, allResults2, months);
                 createComparisonCharts(processed, name1, name2);
@@ -870,7 +869,6 @@
         function clearError() { document.getElementById('errorContainer').innerHTML = ''; }
 
         document.getElementById('fetchBtn').addEventListener('click', fetchAndDisplayData);
-        document.getElementById('downloadBtn').addEventListener('click', downloadCSV);
         document.addEventListener('keypress', e => {
             if (e.key === 'Enter' && !document.getElementById('fetchBtn').disabled) {
                 fetchAndDisplayData();
