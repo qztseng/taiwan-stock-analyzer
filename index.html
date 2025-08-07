@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Taiwan Stock Revenue Analyzer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            color: #2c3e50;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+        .company-name {
+            font-size: 1.8rem;
+            font-weight: 600;
+            margin: 10px 0;
+            padding: 10px 20px;
+            border-radius: 10px;
+            display: inline-block;
+            min-width: 200px;
+        }
+        #companyName1 {
+            color: #e74c3c;
+            background: linear-gradient(45deg, #fff5f5, #ffe5e5);
+            border-left: 4px solid #e74c3c;
+        }
+        #companyName2 {
+            color: #3498db;
+            background: linear-gradient(45deg, #e3f2fd, #bbdefb);
+            border-left: 4px solid #3498db;
+        }
+        .input-section {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            border: 2px solid #e9ecef;
+        }
+        .input-group {
+            display: flex;
+            gap: 15px;
+            align-items: end;
+            flex-wrap: wrap;
+        }
+        .form-group {
+            flex: 1;
+            min-width: 200px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #495057;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        .fetch-btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-width: 140px;
+        }
+        .fetch-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+        }
+        .fetch-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Toggle Switch */
+        .toggle-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 24px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: #667eea;
+        }
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: #667eea;
+            font-weight: 600;
+        }
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .charts-container {
+            display: none;
+            grid-template-columns: repeat(auto-fit, minmax(600px, 1fr));
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        .chart-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e9ecef;
+        }
+        .chart-card h3 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 1.3rem;
+            text-align: center;
+            font-weight: 600;
+        }
+        .chart-controls {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        .download-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        .download-btn:hover {
+            background: #218838;
+        }
+        .chart-container {
+            position: relative;
+            height: 400px;
+        }
+        .data-table-container {
+            display: none;
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e9ecef;
+            overflow-x: auto;
+        }
+        .data-table-container h3 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 1.3rem;
+            font-weight: 600;
+        }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        .data-table th,
+        .data-table td {
+            padding: 12px 8px;
+            text-align: center;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .data-table th {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+        }
+        .data-table tr:hover {
+            background-color: #f8f9fa;
+        }
+        .positive {
+            color: #28a745;
+            font-weight: 600;
+        }
+        .negative {
+            color: #dc3545;
+            font-weight: 600;
+        }
+        .error-message {
+            background: linear-gradient(45deg, #ffe5e5, #fff0f0);
+            color: #dc3545;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border: 1px solid #f5c6cb;
+            border-left: 4px solid #dc3545;
+        }
+        .warning-message {
+            background: linear-gradient(45deg, #fff3cd, #ffeaa7);
+            color: #856404;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border: 1px solid #ffeaa7;
+            border-left: 4px solid #ffc107;
+        }
+        .success-message {
+            background: linear-gradient(45deg, #d4edda, #c3e6cb);
+            color: #155724;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border: 1px solid #c3e6cb;
+            border-left: 4px solid #28a745;
+        }
+        .log-container {
+            display: none;
+            background: #2c3e50;
+            color: #ecf0f1;
+            font-family: 'Courier New', Courier, monospace;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            max-height: 200px;
+            overflow-y: auto;
+            font-size: 14px;
+            border: 1px solid #34495e;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .log-container p {
+            margin: 0;
+            padding: 3px 0;
+            border-bottom: 1px solid #34495e;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .log-container p:last-child {
+            border-bottom: none;
+        }
+        @media (max-width: 768px) {
+            .input-group {
+                flex-direction: column;
+            }
+            .charts-container {
+                grid-template-columns: 1fr;
+            }
+            .form-group {
+                min-width: 100%;
+            }
+            .company-name {
+                display: block;
+                margin: 10px auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏢 Taiwan Stock Revenue Analyzer</h1>
+            <div id="companyNames" style="margin-top: 10px;">
+                <div id="companyName1" class="company-name" style="display: none;"></div>
+                <div id="companyName2" class="company-name" style="display: none;"></div>
+            </div>
+        </div>
+
+        <div class="input-section">
+            <div class="input-group">
+                <div class="form-group">
+                    <label for="companyCode1">Company Code 1 (主公司)</label>
+                    <input type="text" id="companyCode1" value="6857" placeholder="e.g., 6857, 2330">
+                </div>
+                <div class="form-group">
+                    <label for="companyCode2">Company Code 2 (比較公司)</label>
+                    <input type="text" id="companyCode2" value="2330" placeholder="e.g., 2330, 2317 (可留空)">
+                </div>
+                <div class="form-group">
+                    <label for="startDate">Start Date (起始日期)</label>
+                    <input type="month" id="startDate" value="2024-01">
+                </div>
+                <div class="form-group">
+                    <button id="fetchBtn" class="fetch-btn">📊 Fetch & Compare</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            Fetching financial data... (See logs below)
+        </div>
+
+        <div id="logContainer" class="log-container"></div>
+
+        <div id="errorContainer"></div>
+
+        <div class="toggle-group" style="background: #f8f9fa; padding: 15px; border-radius: 10px; margin-bottom: 20px; display: none;" id="globalToggleControls">
+            <span>Show Companies:</span>
+            <label class="switch">
+                <input type="checkbox" id="toggleCompany1" checked>
+                <span class="slider"></span>
+            </label>
+            <span id="toggleCompany1Label">Company 1</span>
+            <label class="switch" style="margin-left: 20px;">
+                <input type="checkbox" id="toggleCompany2" checked>
+                <span class="slider"></span>
+            </label>
+            <span id="toggleCompany2Label">Company 2</span>
+        </div>
+
+        <div id="chartsContainer" class="charts-container">
+            <!-- Monthly Chart -->
+            <div class="chart-card">
+                <div class="chart-controls">
+                    <h3>📈 Monthly Revenue Trend</h3>
+                    <button id="downloadBtn" class="download-btn">📥 Download CSV</button>
+                </div>
+                <div class="chart-container">
+                    <canvas id="monthlyChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Quarterly Chart -->
+            <div class="chart-card">
+                <div class="chart-controls">
+                    <h3>📊 Quarterly Revenue Trend</h3>
+                </div>
+                <div class="chart-container">
+                    <canvas id="quarterlyChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Yearly Chart -->
+            <div class="chart-card">
+                <div class="chart-controls">
+                    <h3>📅 Yearly Revenue Trend</h3>
+                </div>
+                <div class="chart-container">
+                    <canvas id="yearlyChart"></canvas>
+                </div>
+            </div>
+
+            <!-- YoY Change Chart -->
+            <div class="chart-card">
+                <div class="chart-controls">
+                    <h3>📈 YoY Change Trend</h3>
+                </div>
+                <div class="chart-container">
+                    <canvas id="yoyChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div id="dataTableContainer" class="data-table-container">
+            <h3>📋 Monthly Revenue Data</h3>
+            <table id="dataTable" class="data-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th colspan="3">Company 1</th>
+                        <th colspan="3">Company 2</th>
+                    </tr>
+                    <tr>
+                        <th></th>
+                        <th>Revenue</th>
+                        <th>YoY %</th>
+                        <th>YTD</th>
+                        <th>Revenue</th>
+                        <th>YoY %</th>
+                        <th>YTD</th>
+                    </tr>
+                </thead>
+                <tbody id="dataTableBody">
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let monthlyChart, quarterlyChart, yearlyChart, yoyChart;
+        let allResults1 = [], allResults2 = [];
+
+        function toMinguoYear(year) {
+            return year - 1911;
+        }
+
+        function generateMonths(startYear, startMonth) {
+            const current = new Date();
+            let year = startYear;
+            let month = startMonth;
+            const months = [];
+            const endYear = current.getFullYear();
+            const endMonth = current.getMonth() + 1;
+
+            while (year < endYear || (year === endYear && month <= endMonth)) {
+                months.push([year, month]);
+                month += 1;
+                if (month > 12) {
+                    year += 1;
+                    month = 1;
+                }
+            }
+            return months;
+        }
+
+        const API_CONFIG = {
+            PROXY_URL: 'http://localhost:3001/api/taiwan-mops',
+        };
+
+        async function fetchRevenue(companyId, year, month) {
+            const minguoYear = toMinguoYear(year);
+            const payload = {
+                companyId: companyId,
+                dataType: "2",
+                month: month.toString(),
+                year: minguoYear.toString(),
+                subsidiaryCompanyId: ""
+            };
+
+            try {
+                const response = await fetch(API_CONFIG.PROXY_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Proxy error: ${response.status}`);
+                }
+
+                const data = await response.json();
+                if (data.code !== 200) {
+                    throw new Error(data.message || 'API returned error');
+                }
+                
+                const parsed = parseAPIResponse(data, year, month);
+                if (parsed) {
+                    logToUI(`Success for ${companyId} (${year}-${month}): Revenue ${parsed.revenue.toLocaleString()}M`, 'success');
+                }
+                return parsed;
+
+            } catch (error) {
+                logToUI(`Error for ${companyId} (${year}-${month}): ${error.message}`, 'error');
+                return null;
+            }
+        }
+
+        function parseAPIResponse(apiResponse, year, month) {
+            if (!apiResponse || !apiResponse.result || !apiResponse.result.data) {
+                return null;
+            }
+
+            const data = apiResponse.result.data;
+            const companyName = apiResponse.result.companyAbbreviation;
+
+            const findValue = (key) => {
+                const item = data.find(d => d[0] === key);
+                const value = item ? item[1] : null;
+                return value ? value.replace(/,/g, '') : null;
+            };
+
+            const revenueStr = findValue('本月');
+            const lastYearRevenueStr = findValue('去年同期');
+            const ytdRevenueStr = findValue('本年累計');
+
+            if (revenueStr === null) return null;
+
+            const revenue = parseFloat(revenueStr);
+            const lastYearRevenue = parseFloat(lastYearRevenueStr);
+            const ytdRevenue = parseFloat(ytdRevenueStr);
+
+            const revenueInMillions = revenue / 1000;
+            const lastYearRevenueInMillions = lastYearRevenue / 1000;
+            const ytdRevenueInMillions = ytdRevenue / 1000;
+
+            const changePercent = lastYearRevenue > 0 ? ((revenue - lastYearRevenue) / lastYearRevenue) * 100 : 0;
+
+            return {
+                companyName: companyName,
+                year: year,
+                month: month,
+                revenue: revenueInMillions,
+                lastYearRevenue: lastYearRevenueInMillions,
+                changePercent: changePercent,
+                ytdRevenue: ytdRevenueInMillions.toLocaleString()
+            };
+        }
+
+        function processComparisonData(results1, results2, months) {
+            const monthlyData = months.map(([year, month]) => {
+                const r1 = results1.find(r => r && r.year === year && r.month === month);
+                const r2 = results2.find(r => r && r.year === year && r.month === month);
+
+                return {
+                    date: `${year}-${String(month).padStart(2, '0')}`,
+                    revenue1: r1?.revenue ?? null,
+                    revenue2: r2?.revenue ?? null,
+                    yoy1: r1?.changePercent ?? null,
+                    yoy2: r2?.changePercent ?? null
+                };
+            });
+
+            const quarterlyData = {};
+            monthlyData.forEach(d => {
+                const q = Math.ceil(parseInt(d.date.split('-')[1]) / 3);
+                const year = d.date.split('-')[0];
+                const key = `${year}Q${q}`;
+                if (!quarterlyData[key]) quarterlyData[key] = { revenue1: 0, revenue2: 0 };
+                if (d.revenue1 !== null) quarterlyData[key].revenue1 += d.revenue1;
+                if (d.revenue2 !== null) quarterlyData[key].revenue2 += d.revenue2;
+            });
+
+            const quarterlyArray = Object.entries(quarterlyData)
+                .map(([key, q]) => ({ date: key, revenue1: q.revenue1, revenue2: q.revenue2 }))
+                .sort((a, b) => a.date.localeCompare(b.date));
+
+            const yearlyData = {};
+            monthlyData.forEach(d => {
+                const year = d.date.split('-')[0];
+                if (!yearlyData[year]) yearlyData[year] = { revenue1: 0, revenue2: 0 };
+                if (d.revenue1 !== null) yearlyData[year].revenue1 += d.revenue1;
+                if (d.revenue2 !== null) yearlyData[year].revenue2 += d.revenue2;
+            });
+
+            const yearlyArray = Object.entries(yearlyData)
+                .map(([year, y]) => ({ date: year, revenue1: y.revenue1, revenue2: y.revenue2 }))
+                .sort((a, b) => a.date - b.date);
+
+            return { monthlyData, quarterlyArray, yearlyArray };
+        }
+
+        function createComparisonCharts(data, name1, name2) {
+            const n1 = name1 || "Company 1";
+            const n2 = name2 || "Company 2";
+
+            if (monthlyChart) monthlyChart.destroy();
+            if (quarterlyChart) quarterlyChart.destroy();
+            if (yearlyChart) yearlyChart.destroy();
+            if (yoyChart) yoyChart.destroy();
+
+            const mCtx = document.getElementById('monthlyChart').getContext('2d');
+            monthlyChart = new Chart(mCtx, {
+                type: 'line',
+                data: {
+                    labels: data.monthlyData.map(d => d.date),
+                    datasets: [
+                        {
+                            label: n1,
+                            data: data.monthlyData.map(d => d.revenue1),
+                            borderColor: '#667eea',
+                            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                            borderWidth: 3,
+                            fill: true,
+                            tension: 0.4
+                        },
+                        {
+                            label: n2,
+                            data: data.monthlyData.map(d => d.revenue2),
+                            borderColor: '#3498db',
+                            backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                            borderWidth: 3,
+                            fill: true,
+                            tension: 0.4,
+                            borderDash: [5, 5]
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true, ticks: { callback: value => value.toLocaleString() + 'M' } } }
+                }
+            });
+
+            const qCtx = document.getElementById('quarterlyChart').getContext('2d');
+            quarterlyChart = new Chart(qCtx, {
+                type: 'bar',
+                data: {
+                    labels: data.quarterlyArray.map(d => d.date),
+                    datasets: [
+                        { label: n1, data: data.quarterlyArray.map(d => d.revenue1), backgroundColor: 'rgba(102, 126, 234, 0.7)' },
+                        { label: n2, data: data.quarterlyArray.map(d => d.revenue2), backgroundColor: 'rgba(52, 152, 219, 0.7)' }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+
+            const yCtx = document.getElementById('yearlyChart').getContext('2d');
+            yearlyChart = new Chart(yCtx, {
+                type: 'bar',
+                data: {
+                    labels: data.yearlyArray.map(d => d.date),
+                    datasets: [
+                        { label: n1, data: data.yearlyArray.map(d => d.revenue1), backgroundColor: 'rgba(102, 126, 234, 0.7)' },
+                        { label: n2, data: data.yearlyArray.map(d => d.revenue2), backgroundColor: 'rgba(52, 152, 219, 0.7)' }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+
+            const yoyCtx = document.getElementById('yoyChart').getContext('2d');
+            yoyChart = new Chart(yoyCtx, {
+                type: 'line',
+                data: {
+                    labels: data.monthlyData.map(d => d.date),
+                    datasets: [
+                        { label: `${n1} YoY %`, data: data.monthlyData.map(d => d.yoy1), borderColor: '#e74c3c', backgroundColor: 'rgba(231, 76, 60, 0.1)', borderWidth: 3, fill: true, tension: 0.4 },
+                        { label: `${n2} YoY %`, data: data.monthlyData.map(d => d.yoy2), borderColor: '#f39c12', backgroundColor: 'rgba(243, 156, 18, 0.1)', borderWidth: 3, fill: true, tension: 0.4, borderDash: [5, 5] }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+
+            document.getElementById('toggleCompany1').onchange = updateChartVisibility;
+            document.getElementById('toggleCompany2').onchange = updateChartVisibility;
+            updateChartVisibility();
+        }
+
+        function updateChartVisibility() {
+            const show1 = document.getElementById('toggleCompany1').checked;
+            const show2 = document.getElementById('companyCode2').value.trim() && document.getElementById('toggleCompany2').checked;
+            [monthlyChart, quarterlyChart, yearlyChart, yoyChart].forEach(chart => {
+                if (chart) {
+                    chart.data.datasets[0].hidden = !show1;
+                    if (chart.data.datasets[1]) chart.data.datasets[1].hidden = !show2;
+                    chart.update();
+                }
+            });
+        }
+
+        function populateComparisonTable(results1, results2, months) {
+            const tbody = document.getElementById('dataTableBody');
+            tbody.innerHTML = '';
+            months.forEach(([year, month]) => {
+                const dateStr = `${year}-${String(month).padStart(2, '0')}`;
+                const r1 = results1.find(r => r && r.year === year && r.month === month);
+                const r2 = results2.find(r => r && r.year === year && r.month === month);
+                const row = tbody.insertRow();
+                row.insertCell().textContent = dateStr;
+                const formatNum = (num) => num ? num.toLocaleString() : 'N/A';
+                const formatPercent = (p) => (p !== null && p !== undefined) ? `${p.toFixed(2)}%` : 'N/A';
+                row.insertCell().textContent = formatNum(r1?.revenue);
+                const yoy1Cell = row.insertCell();
+                yoy1Cell.textContent = formatPercent(r1?.changePercent);
+                yoy1Cell.className = r1?.changePercent > 0 ? 'positive' : 'negative';
+                row.insertCell().textContent = r1?.ytdRevenue || 'N/A';
+                row.insertCell().textContent = formatNum(r2?.revenue);
+                const yoy2Cell = row.insertCell();
+                yoy2Cell.textContent = formatPercent(r2?.changePercent);
+                yoy2Cell.className = r2?.changePercent > 0 ? 'positive' : 'negative';
+                row.insertCell().textContent = r2?.ytdRevenue || 'N/A';
+            });
+        }
+
+        function downloadCSV() {
+            if (allResults1.length === 0 && allResults2.length === 0) {
+                alert("No data to export.");
+                return;
+            }
+            const headers = "Date,Company 1 Revenue (M),Company 1 YoY %,Company 1 YTD (M),Company 2 Revenue (M),Company 2 YoY %,Company 2 YTD (M)\n";
+            const rows = [];
+            const months = generateMonths(
+                document.getElementById('startDate').value.split('-').map(Number)[0],
+                document.getElementById('startDate').value.split('-').map(Number)[1]
+            );
+            months.forEach(([year, month]) => {
+                const date = `${year}-${String(month).padStart(2, '0')}`;
+                const r1 = allResults1.find(r => r && r.year === year && r.month === month) || {};
+                const r2 = allResults2.find(r => r && r.year === year && r.month === month) || {};
+                const row = [
+                    date,
+                    r1.revenue || 'N/A',
+                    r1.changePercent ? r1.changePercent.toFixed(2) : 'N/A',
+                    r1.ytdRevenue || 'N/A',
+                    r2.revenue || 'N/A',
+                    r2.changePercent ? r2.changePercent.toFixed(2) : 'N/A',
+                    r2.ytdRevenue || 'N/A'
+                ].join(',');
+                rows.push(row);
+            });
+            const csv = headers + rows.join('\n');
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `stock_revenue_comparison_${Date.now()}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        async function fetchAndDisplayData() {
+            const code1 = document.getElementById('companyCode1').value.trim();
+            const code2 = document.getElementById('companyCode2').value.trim();
+            const start = document.getElementById('startDate').value;
+
+            if (!code1 || !start) {
+                showError('Please enter a primary company code and a start date.');
+                return;
+            }
+
+            const [startYear, startMonth] = start.split('-').map(Number);
+            const months = generateMonths(startYear, startMonth);
+
+            const loadingDiv = document.getElementById('loading');
+            const logContainer = document.getElementById('logContainer');
+            const fetchBtn = document.getElementById('fetchBtn');
+
+            loadingDiv.style.display = 'block';
+            logContainer.innerHTML = '';
+            logContainer.style.display = 'block';
+            fetchBtn.disabled = true;
+            document.getElementById('chartsContainer').style.display = 'none';
+            document.getElementById('dataTableContainer').style.display = 'none';
+            document.getElementById('companyName1').style.display = 'none';
+            document.getElementById('companyName2').style.display = 'none';
+            clearError();
+
+            try {
+                const createFetchPromise = (code, y, m, index) => new Promise(resolve => setTimeout(() => {
+                    logToUI(`Fetching ${code} for ${y}-${m}...`);
+                    resolve(fetchRevenue(code, y, m));
+                }, index * 200));
+
+                logToUI(`--- Starting fetch for ${code1} ---`);
+                const promises1 = months.map(([y, m], index) => createFetchPromise(code1, y, m, index));
+                allResults1 = await Promise.all(promises1);
+                const name1 = allResults1.find(r => r)?.companyName || '';
+
+                if (code2) {
+                    logToUI(`--- Starting fetch for ${code2} ---`);
+                    const promises2 = months.map(([y, m], index) => createFetchPromise(code2, y, m, index));
+                    allResults2 = await Promise.all(promises2);
+                } else {
+                    allResults2 = Array(months.length).fill(null);
+                }
+                const name2 = allResults2.find(r => r)?.companyName || '';
+
+                if (name1) {
+                    document.getElementById('companyName1').textContent = `${name1} (${code1})`;
+                    document.getElementById('companyName1').style.display = 'inline-block';
+                    document.getElementById('toggleCompany1Label').textContent = name1;
+                }
+                if (name2) {
+                    document.getElementById('companyName2').textContent = `${name2} (${code2})`;
+                    document.getElementById('companyName2').style.display = 'inline-block';
+                    document.getElementById('toggleCompany2Label').textContent = name2;
+                }
+
+                // Show global controls
+                document.getElementById('globalToggleControls').style.display = 'flex';
+
+                const processed = processComparisonData(allResults1, allResults2, months);
+                createComparisonCharts(processed, name1, name2);
+                populateComparisonTable(allResults1, allResults2, months);
+
+                document.getElementById('chartsContainer').style.display = 'grid';
+                document.getElementById('dataTableContainer').style.display = 'block';
+
+                if (!allResults1.some(r => r !== null)) {
+                    showError('Company 1: No data found for the selected period.');
+                } else if (code2 && !allResults2.some(r => r !== null)) {
+                    showWarning('Company 2: No data found for the selected period.');
+                } else {
+                    showSuccess('Data loaded successfully.');
+                }
+
+            } catch (err) {
+                showError(`System Error: ${err.message}`);
+            } finally {
+                loadingDiv.style.display = 'none';
+                logContainer.style.display = 'none';
+                fetchBtn.disabled = false;
+            }
+        }
+
+        function logToUI(message, type = 'info') {
+            const logContainer = document.getElementById('logContainer');
+            const p = document.createElement('p');
+            p.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            if (type === 'error') p.style.color = '#e74c3c';
+            if (type === 'success') p.style.color = '#2ecc71';
+            logContainer.appendChild(p);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        function showError(msg) { document.getElementById('errorContainer').innerHTML = `<div class="error-message">❌ ${msg}</div>`; }
+        function showWarning(msg) { document.getElementById('errorContainer').innerHTML = `<div class="warning-message">⚠️ ${msg}</div>`; }
+        function showSuccess(msg) { document.getElementById('errorContainer').innerHTML = `<div class="success-message">✅ ${msg}</div>`; }
+        function clearError() { document.getElementById('errorContainer').innerHTML = ''; }
+
+        document.getElementById('fetchBtn').addEventListener('click', fetchAndDisplayData);
+        document.getElementById('downloadBtn').addEventListener('click', downloadCSV);
+        document.addEventListener('keypress', e => {
+            if (e.key === 'Enter' && !document.getElementById('fetchBtn').disabled) {
+                fetchAndDisplayData();
+            }
+        });
+    </script>
+</body>
+</html>
