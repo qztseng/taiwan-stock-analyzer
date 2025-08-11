@@ -201,10 +201,10 @@ app.post('/api/revenue', async (req, res) => {
 
 // --- Server Initialization ---
 
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 (async () => {
     await initializeDatabase();
     app.listen(PORT, () => {
-        console.log(`✅ Server running at http://localhost:${PORT}`);
+        console.log(`✅ Server running at http://0.0.0.0:${PORT}`);
     });
 })();
