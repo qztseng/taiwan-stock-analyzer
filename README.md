@@ -1,80 +1,77 @@
-# Taiwan Stock Revenue Analyzer
+# Taiwan Stock Revenue Analyzer V2
 
-This is a web-based application designed to fetch, visualize, and compare the monthly revenue data of companies listed on the Taiwan Stock Exchange (TWSE). The user can input up to two company stock codes and a start date to generate interactive charts and a data table, allowing for easy analysis of financial trends.
+This is a web-based application designed to fetch, visualize, and compare the monthly revenue data of companies listed on the Taiwan Stock Exchange (TSE), Taipei Exchange (TPEx), and Emerging Stock Board (ESB). It features a dynamic search interface and a stateful backend that caches data to provide a fast and efficient user experience.
 
 ## 🌟 Features
 
+-   **Comprehensive Company Search**: Dynamically search for companies by stock code or name across TSE, TPEx, and ESB markets.
+-   **Efficient Data Caching**: The backend caches previously fetched revenue data in a local SQLite database, eliminating redundant API calls and speeding up subsequent requests.
 -   **Company Comparison**: Analyze one or two companies simultaneously.
--   **Historical Data**: Select a custom start date to retrieve historical revenue data.
--   **Multiple Visualizations**: Data is presented in four different chart types:
-    -   Monthly Revenue Trend (Line Chart)
-    -   Quarterly Revenue Trend (Bar Chart)
-    -   Yearly Revenue Trend (Bar Chart)
-    -   Year-over-Year (YoY) Change Trend (Line Chart)
+-   **Multiple Visualizations**: Data is presented in various chart types (Monthly, Quarterly, Yearly) for both revenue trends and Year-over-Year (YoY) growth.
 -   **Interactive Charts**: Toggle the visibility of each company on the charts for focused analysis.
--   **Tabular Data**: View the raw monthly revenue, YoY percentage change, and Year-to-Date (YTD) revenue in a clear table.
--   **Data Export**: Download the comparison data as a CSV file for offline analysis.
--   **User-Friendly Interface**: A clean, responsive UI with loading indicators and clear error/success messages.
+-   **Tabular Data**: View the raw monthly revenue, YoY percentage change, and Year-to-Date (YTD) revenue in a clear, sortable table.
 
-## 🏗️ Architecture & Data Flow
+## 🏗️ Architecture
 
-The application consists of two main components: a frontend user interface and a backend proxy server.
+The application has been refactored into a more robust client-server architecture with a persistent database.
 
 ### 1. Frontend (`index.html`)
 
 -   **Structure**: A single HTML file containing the structure (HTML), styling (CSS), and logic (JavaScript).
--   **Technology**: Built with vanilla JavaScript, HTML5, and CSS3. It uses the **Chart.js** library for creating interactive charts.
+-   **Technology**: Vanilla JavaScript, Chart.js.
 -   **Functionality**:
-    -   Captures user input for company codes and a start date.
-    -   When the "Fetch & Compare" button is clicked, it generates a list of months from the start date to the present.
-    -   For each month, it sends a request to its backend proxy server to fetch the revenue data for the specified company/companies. A 1.5-second delay is added between requests to avoid overwhelming the target API.
-    -   Once the data is retrieved, it processes the raw monthly figures to calculate quarterly and yearly aggregates.
-    -   It then uses Chart.js to render the four analytical charts.
-    -   Finally, it populates a data table with the detailed monthly figures.
+    -   Provides a search input with autocomplete suggestions powered by the backend's search API.
+    -   Captures user selections for companies and a start date.
+    -   Makes a single, streamlined API call per company to the backend's `/api/revenue` endpoint.
+    -   Receives the complete dataset from the backend and uses Chart.js to render analytical charts and populate the data table.
 
 ### 2. Backend (`server.js`)
 
--   **Structure**: A simple Node.js server built with the Express.js framework.
--   **Technology**: Node.js, Express.js, `node-fetch` for making HTTP requests, and `cors` for handling Cross-Origin Resource Sharing.
--   **Purpose**: It acts as a **CORS proxy**. Browsers block web pages from making direct API requests to a different domain (like `mops.twse.com.tw`) for security reasons. This server circumvents that issue.
+-   **Structure**: A Node.js server built with the Express.js framework.
+-   **Technology**: Node.js, Express.js, `sqlite`, `sqlite3`.
 -   **Functionality**:
-    -   It exposes a single API endpoint: `POST /api/taiwan-mops`.
-    -   When the frontend sends a request to this endpoint, the server forwards the exact same request to the official Taiwan Market Observation Post System (MOPS) API: `https://mops.twse.com.tw/mops/api/t05st10_ifrs`.
-    -   It includes necessary headers (`User-Agent`, `Referer`, etc.) to mimic a legitimate browser request.
-    -   It receives the JSON response from the MOPS API and pipes it back to the frontend.
-    -   It includes basic error handling to check if the response from MOPS is valid JSON or a rate-limiting/CAPTCHA HTML page.
+    -   Serves the static `index.html` file.
+    -   Provides two main API endpoints:
+        -   `GET /api/search-company`: Powers the frontend's autocomplete search box.
+        -   `POST /api/revenue`: The main data orchestration endpoint. It checks the local SQLite database for cached data. If data is missing, it fetches it from the official MOPS API, saves it to the cache, and then returns the complete dataset to the client.
 
-### Data Flow Diagram
+### 3. Database (`database.js` & `database.db`)
 
-```
-User Action (in browser)
-       │
-       └──> 1. Enters codes/date in index.html
-       │
-       └──> 2. JS sends POST request to http://localhost:3001/api/taiwan-mops
-                                │
-                                │
-                      3. server.js receives request
-                                │
-                                │
-                      4. Forwards POST request to https://mops.twse.com.tw/...
-                                │                                        │
-                                │                                        ▼
-                                │                                  MOPS API Server
-                                │                                        │
-                                │                                        ▼
-                      7. Sends JSON back to browser <── 6. Returns JSON data
-                                │
-                                │
-       8. JS in index.html parses data, renders charts & table
-       │
-       ▼
-Display to User
-```
+-   **Technology**: SQLite.
+-   **`database.js`**: A module that handles the database connection, and schema initialization for the `companies` and `revenues` tables.
+-   **`database.db`**: The physical SQLite database file containing the cached revenue data and the master list of companies.
+
+### 4. Data Seeding (`seed.js`)
+
+-   **Functionality**: A one-time script used to populate the `companies` table in the database. It fetches master lists for all TSE, TPEx, and ESB companies from official government open data sources and inserts them into the database, enabling the search functionality.
+
+## 📂 File Descriptions
+
+| File                      | Description                                                                                                                                                           |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `index.html`              | The core frontend of the application. Contains all HTML, CSS, and JavaScript for the user interface, charting, and interaction.                                         |
+| `server.js`               | The main backend file. Runs an Express server that serves the frontend, provides API endpoints for search and revenue data, and manages the data caching logic.          |
+| `database.js`             | A helper module for the backend. Manages the SQLite database connection and initializes the required table schemas (`companies`, `revenues`).                             |
+| `seed.js`                 | A standalone script to populate the `companies` table in the database from official TSE, TPEx, and ESB data sources. Run this once during setup.                         |
+| `database.db`             | The SQLite database file. Stores the list of all companies and caches all fetched revenue data to prevent redundant API calls.                                          |
+| `package.json`            | Defines the project's metadata and lists its Node.js dependencies (e.g., `express`, `sqlite`).                                                                        |
+| `package-lock.json`       | Records the exact versions of the project's dependencies.                                                                                                             |
+| `DESIGN.md`               | The technical design document outlining the architecture and implementation plan for the V2 features.                                                                   |
+| `test-playwright.js`      | An end-to-end test script using Playwright to simulate user interaction and verify that the application's core features are working correctly.                          |
+| `clear-revenues.js`       | A utility script to clear only the `revenues` table from the database, useful for testing caching from a clean slate without re-seeding companies.                     |
+| ---                       | ---                                                                                                                                                                   |
+| **Unused/Legacy Files**   |                                                                                                                                                                       |
+| `mops_api.py`             | **Unused**. A Python script, likely from a previous version or for testing purposes. Not used by the current Node.js application.                                      |
+| `test-mops.js`            | **Unused**. A legacy test script. Its functionality is superseded by the new backend logic and `test-playwright.js`.                                                    |
+| `test-new-payload.js`     | **Unused**. A legacy test script.                                                                                                                                     |
+| `test-revenue-fetch.js`   | **Unused**. A legacy test script.                                                                                                                                     |
+| `test-server-logic.js`    | **Unused**. A legacy test script.                                                                                                                                     |
 
 ## 🛠️ Setup and Usage
 
-1.  **Prerequisites**: You need to have [Node.js](https://nodejs.org/) installed on your machine.
+1.  **Prerequisites**: You need to have [Node.js](https://nodejs.org/) and `sqlite3` installed.
+    -   **Node.js**: [Download from nodejs.org](https://nodejs.org/)
+    -   **sqlite3**: `sudo apt-get install sqlite3` (on Debian/Ubuntu) or `brew install sqlite3` (on macOS).
 
 2.  **Clone the Repository**:
     ```bash
@@ -82,38 +79,22 @@ Display to User
     cd taiwan-stock-analyzer
     ```
 
-3.  **Install Backend Dependencies**:
-    In the project directory, run the following command to install the required Node.js packages:
+3.  **Install Dependencies**:
     ```bash
-    npm install express cors node-fetch
+    npm install
     ```
 
-4.  **Start the Proxy Server**:
+4.  **Seed the Database**:
+    Run the seeding script once to populate the database with the list of all companies.
+    ```bash
+    node seed.js
+    ```
+
+5.  **Start the Server**:
     ```bash
     node server.js
     ```
-    You should see a confirmation message: `✅ Proxy server running at http://localhost:3001`.
+    You should see a confirmation message: `✅ Server running at http://localhost:3001`.
 
-5.  **Open the Application**:
-    Open the `index.html` file directly in your web browser (e.g., Chrome, Firefox).
-
-6.  **Use the Analyzer**:
-    -   Enter a company stock code in the "Company Code 1" field (e.g., 2330 for TSMC).
-    -   Optionally, enter a second code in the "Company Code 2" field for comparison.
-    -   Select a "Start Date".
-    -   Click the "Fetch & Compare" button and wait for the data to load.
-
-## 💻 Technologies Used
-
--   **Frontend**:
-    -   HTML5
-    -   CSS3
-    -   Vanilla JavaScript
-    -   [Chart.js](https://www.chartjs.org/)
--   **Backend**:
-    -   [Node.js](https://nodejs.org/)
-    -   [Express.js](https://expressjs.com/)
-    -   [node-fetch](https://www.npmjs.com/package/node-fetch)
-    -   [cors](https://www.npmjs.com/package/cors)
--   **Data Source**:
-    -   [Taiwan Stock Exchange (MOPS) API](https://mops.twse.com.tw/)
+6.  **Open the Application**:
+    Navigate to **`http://localhost:3001`** in your web browser.
