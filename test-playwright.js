@@ -17,25 +17,25 @@ const assert = require('assert');
 
         // --- Test Case: Fetch and Compare Two Companies ---
 
-        // 1. Fill out Company 1 (TSMC)
-        console.log('Typing "2330" for Company 1...');
-        await page.fill('#companySearch1', '2330');
+        // 1. Fill out Company 1 (6841)
+        console.log('Typing "6841" for Company 1...');
+        await page.fill('#companySearch1', '6841');
         await page.waitForSelector('#suggestions1 div');
         console.log('Suggestions for Company 1 appeared. Clicking first result.');
         await page.click('#suggestions1 div:first-child');
         const companyCode1 = await page.inputValue('#companyCode1');
-        assert.strictEqual(companyCode1, '2330', 'Company code 1 should be set to 2330');
-        console.log('✅ Company 1 (2330) selected.');
+        assert.strictEqual(companyCode1, '6841', 'Company code 1 should be set to 6841');
+        console.log('✅ Company 1 (6841) selected.');
 
-        // 2. Fill out Company 2 (Hon Hai)
-        console.log('Typing "2317" for Company 2...');
-        await page.fill('#companySearch2', '2317');
+        // 2. Fill out Company 2 (6857)
+        console.log('Typing "6857" for Company 2...');
+        await page.fill('#companySearch2', '6857');
         await page.waitForSelector('#suggestions2 div');
         console.log('Suggestions for Company 2 appeared. Clicking first result.');
         await page.click('#suggestions2 div:first-child');
         const companyCode2 = await page.inputValue('#companyCode2');
-        assert.strictEqual(companyCode2, '2317', 'Company code 2 should be set to 2317');
-        console.log('✅ Company 2 (2317) selected.');
+        assert.strictEqual(companyCode2, '6857', 'Company code 2 should be set to 6857');
+        console.log('✅ Company 2 (6857) selected.');
 
         // 3. Set the start date
         const testDate = '2023-01';
@@ -56,9 +56,31 @@ const assert = require('assert');
         await page.waitForSelector('#companyName2:not([style*="display: none"])');
         const companyName1Text = await page.textContent('#companyName1');
         const companyName2Text = await page.textContent('#companyName2');
-        assert.ok(companyName1Text.includes('2330'), 'Company 1 name should be displayed');
-        assert.ok(companyName2Text.includes('2317'), 'Company 2 name should be displayed');
+        assert.ok(companyName1Text.includes('6841'), 'Company 1 name should be displayed');
+        assert.ok(companyName2Text.includes('6857'), 'Company 2 name should be displayed');
         console.log('✅ Company name displays are correct.');
+
+        // Assert Market Cap displays are visible and correctly formatted
+        await page.waitForSelector('#marketCap1:not([style*="display: none"])');
+        await page.waitForSelector('#marketCap2:not([style*="display: none"])');
+        
+        const marketCap1HTML = await page.innerHTML('#marketCap1');
+        assert.ok(marketCap1HTML.includes('Market Cap.'), 'Market Cap 1 should contain "Market Cap."');
+        assert.ok(marketCap1HTML.includes('TWD'), 'Market Cap 1 should contain "TWD"');
+        assert.ok(marketCap1HTML.includes('USD'), 'Market Cap 1 should contain "USD"');
+        assert.ok(marketCap1HTML.includes('Total issued share:'), 'Market Cap 1 should contain "Total issued share:"');
+        assert.ok(marketCap1HTML.includes('Latest price:'), 'Market Cap 1 should contain "Latest price:"');
+        assert.ok(!marketCap1HTML.includes('NaN'), 'Market Cap 1 USD value should not be NaN.');
+        console.log('✅ Market Cap 1 display is correct.');
+
+        const marketCap2HTML = await page.innerHTML('#marketCap2');
+        assert.ok(marketCap2HTML.includes('Market Cap.'), 'Market Cap 2 should contain "Market Cap."');
+        assert.ok(marketCap2HTML.includes('TWD'), 'Market Cap 2 should contain "TWD"');
+        assert.ok(marketCap2HTML.includes('USD'), 'Market Cap 2 should contain "USD"');
+        assert.ok(marketCap2HTML.includes('Total issued share:'), 'Market Cap 2 should contain "Total issued share:"');
+        assert.ok(marketCap2HTML.includes('Latest price:'), 'Market Cap 2 should contain "Latest price:"');
+        assert.ok(!marketCap2HTML.includes('NaN'), 'Market Cap 2 USD value should not be NaN.');
+        console.log('✅ Market Cap 2 display is correct.');
 
         // Assert that the chart has been rendered with two datasets
         const chartInfo = await page.evaluate(() => {

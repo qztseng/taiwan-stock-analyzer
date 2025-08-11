@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Taiwan Stock Revenue Analyzer V2</title>
+    <title>📈 Revenue Compare</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <style>
         * {
@@ -43,6 +43,16 @@
             border-radius: 10px;
             display: inline-block;
             min-width: 200px;
+        }
+        .market-cap-display {
+            font-size: 1rem;
+            font-weight: 500;
+            margin: 5px 0 15px 0;
+            padding: 8px 15px;
+            border-radius: 8px;
+            display: inline-block;
+            color: #333;
+            background: #f0f0f0;
         }
         #companyName1 {
             color: #e74c3c;
@@ -106,6 +116,12 @@
         .fetch-btn:hover {
             transform: translateY(-2px);
             box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+        }
+        .exchange-rate-note {
+            font-size: 12px;
+            color: #868e96;
+            text-align: center;
+            margin-top: 15px;
         }
         .fetch-btn:disabled {
             opacity: 0.6;
@@ -321,10 +337,12 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🏢 Taiwan Stock Revenue Analyzer V2</h1>
+            <h1>📈 Revenue Compare</h1>
             <div id="companyNames" style="margin-top: 10px;">
                 <div id="companyName1" class="company-name" style="display: none;"></div>
+                <div id="marketCap1" class="market-cap-display" style="display: none;"></div>
                 <div id="companyName2" class="company-name" style="display: none;"></div>
+                <div id="marketCap2" class="market-cap-display" style="display: none;"></div>
             </div>
         </div>
 
@@ -349,6 +367,9 @@
                 <div class="form-group">
                     <button id="fetchBtn" class="fetch-btn">📊 Fetch & Compare</button>
                 </div>
+            </div>
+            <div class="exchange-rate-note">
+                Note: Market Cap USD equivalent is calculated using a fixed rate of 30 TWD = 1 USD.
             </div>
         </div>
 
@@ -416,6 +437,7 @@
         const API_CONFIG = {
             SEARCH_URL: '/api/search-company',
             REVENUE_URL: '/api/revenue',
+            MARKET_CAP_URL: '/api/market-cap',
         };
 
         // --- Autocomplete Feature ---
@@ -488,6 +510,24 @@
             } catch (error) {
                 console.error(`Error fetching revenue for ${companyCode}:`, error);
                 showError(`Failed to fetch data for ${companyCode}: ${error.message}`);
+                return null;
+            }
+        }
+
+        async function fetchMarketCap(companyCode) {
+            if (!companyCode) return null;
+            try {
+                const response = await fetch(API_CONFIG.MARKET_CAP_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ companyCode })
+                });
+                if (!response.ok) {
+                    return null;
+                }
+                return await response.json();
+            } catch (error) {
+                console.error(`Error fetching market cap for ${companyCode}:`, error);
                 return null;
             }
         }
@@ -702,38 +742,81 @@
             document.getElementById('dataTableContainer').style.display = 'none';
             document.getElementById('companyName1').style.display = 'none';
             document.getElementById('companyName2').style.display = 'none';
+            document.getElementById('marketCap1').style.display = 'none';
+            document.getElementById('marketCap2').style.display = 'none';
             clearError();
 
             try {
-                const [result1, result2] = await Promise.all([
+                const results = await Promise.allSettled([
                     fetchRevenueData(code1, startDate),
-                    fetchRevenueData(code2, startDate)
+                    fetchRevenueData(code2, startDate),
+                    fetchMarketCap(code1),
+                    fetchMarketCap(code2)
                 ]);
+
+                const result1 = results[0].status === 'fulfilled' ? results[0].value : null;
+                const result2 = results[1].status === 'fulfilled' ? results[1].value : null;
+                const marketCap1 = results[2].status === 'fulfilled' ? results[2].value : null;
+                const marketCap2 = results[3].status === 'fulfilled' ? results[3].value : null;
 
                 allData1 = result1 ? result1.data : [];
                 allData2 = result2 ? result2.data : [];
                 
-                const name1 = result1 ? result1.companyName : 'Company 1';
-                const name2 = result2 ? result2.companyName : 'Company 2';
+                const name1 = result1 ? result1.companyName : `Company ${code1}`;
+                const name2 = result2 ? result2.companyName : `Company ${code2}`;
 
                 // Update UI elements
                 document.getElementById('companyName1').textContent = `${name1} (${code1})`;
-                document.getElementById('companyName1').style.display = 'inline-block';
+                document.getElementById('companyName1').style.display = 'block';
+
+                if (marketCap1 && marketCap1.marketCap) {
+                    const marketCapTWDStr = marketCap1.marketCap.toLocaleString('en-US', { maximumFractionDigits: 0 });
+                    const marketCapUSDStr = marketCap1.marketCapUSD.toLocaleString('en-US', { maximumFractionDigits: 0 });
+                    const marketCapText = `
+                        Market Cap. <b>${marketCapTWDStr} TWD</b> (~${marketCapUSDStr} USD)<br>
+                        Total issued share: ${marketCap1.issuedShares.toLocaleString()}<br>
+                        Latest price: ${marketCap1.stockPrice} TWD (quoted on ${marketCap1.priceDate})
+                    `;
+                    document.getElementById('marketCap1').innerHTML = marketCapText;
+                    document.getElementById('marketCap1').style.display = 'block';
+                } else {
+                    document.getElementById('marketCap1').style.display = 'none';
+                    if(code1) showWarning(`Could not retrieve market cap for ${name1} (${code1}).`);
+                }
+
                 document.getElementById('toggleCompany1Label').textContent = name1;
                 
                 const hasCompany2 = !!code2;
                 document.getElementById('toggleCompany2').parentElement.style.display = hasCompany2 ? 'inline-block' : 'none';
                 document.getElementById('toggleCompany2Label').style.display = hasCompany2 ? 'inline-block' : 'none';
+                
                 if (hasCompany2) {
                     document.getElementById('companyName2').textContent = `${name2} (${code2})`;
-                    document.getElementById('companyName2').style.display = 'inline-block';
+                    document.getElementById('companyName2').style.display = 'block';
+                     if (marketCap2 && marketCap2.marketCap) {
+                        const marketCapTWDStr = marketCap2.marketCap.toLocaleString('en-US', { maximumFractionDigits: 0 });
+                        const marketCapUSDStr = marketCap2.marketCapUSD.toLocaleString('en-US', { maximumFractionDigits: 0 });
+                        const marketCapText = `
+                            Market Cap. <b>${marketCapTWDStr} TWD</b> (~${marketCapUSDStr} USD)<br>
+                            Total issued share: ${marketCap2.issuedShares.toLocaleString()}<br>
+                            Latest price: ${marketCap2.stockPrice} TWD (quoted on ${marketCap2.priceDate})
+                        `;
+                        document.getElementById('marketCap2').innerHTML = marketCapText;
+                        document.getElementById('marketCap2').style.display = 'block';
+                    } else {
+                        document.getElementById('marketCap2').style.display = 'none';
+                        if(code2) showWarning(`Could not retrieve market cap for ${name2} (${code2}).`);
+                    }
                     document.getElementById('toggleCompany2Label').textContent = name2;
+                } else {
+                    document.getElementById('companyName2').style.display = 'none';
+                    document.getElementById('marketCap2').style.display = 'none';
                 }
                  document.getElementById('toggleCompany2').checked = hasCompany2;
 
 
                 if (allData1.length === 0) {
-                    showError(`No data found for ${name1} (${code1}) for the selected period.`);
+                    showError(`No revenue data found for ${name1} (${code1}) for the selected period.`);
                     return;
                 }
 
@@ -747,7 +830,7 @@
                 showSuccess('Data loaded successfully.');
 
                 if (code2 && allData2.length === 0) {
-                    showWarning(`No data found for ${name2} (${code2}), showing only primary company.`);
+                    showWarning(`No revenue data found for ${name2} (${code2}), showing only primary company.`);
                 }
 
             } catch (err) {

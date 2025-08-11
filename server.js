@@ -82,6 +82,144 @@ function parseAPIResponse(apiResponse, year, month) {
 
 // --- API Endpoints ---
 
+// --- Market Cap Functions ---
+async function getIssuedShares(companyId) {
+    const url = 'https://mops.twse.com.tw/mops/api/t05st03';
+    const payload = { companyId: companyId };
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36'
+            },
+            body: JSON.stringify(payload),
+        });
+        if (!response.ok) {
+            return null;
+        }
+        const data = await response.json();
+        if (data.result && data.result.commonStockAmount && data.result.commonStockAmount.value) {
+            const commonStockAmountStr = data.result.commonStockAmount.value;
+            // Robustly parse the number of shares by taking the part before '股'
+            const sharesStr = commonStockAmountStr.split('股')[0].replace(/,/g, '');
+            const shares = parseInt(sharesStr, 10);
+            
+            if (isNaN(shares)) {
+                console.error(`[Shares] Failed to parse shares from string: "${commonStockAmountStr}"`);
+                return null;
+            }
+            return shares;
+        }
+    } catch (error) {
+        console.error('Error fetching issued shares:', error);
+        return null;
+    }
+}
+
+async function getStockPrice(stockNo) {
+    const parseMinguoDate = (minguoDateStr) => {
+        if (!minguoDateStr || typeof minguoDateStr !== 'string') return 'N/A';
+        let cleanDateStr = minguoDateStr.replace(/\//g, '');
+        if (cleanDateStr.length < 7) return minguoDateStr;
+        const year = parseInt(cleanDateStr.substring(0, 3), 10) + 1911;
+        const month = cleanDateStr.substring(3, 5);
+        const day = cleanDateStr.substring(5, 7);
+        return `${year}-${month}-${day}`;
+    };
+
+    // Source 1: TPEx Mainboard (OTC)
+    try {
+        const url = 'https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes';
+        const response = await fetch(url);
+        if (response.ok) {
+            const data = await response.json();
+            const stock = data.find(s => s.SecuritiesCompanyCode === stockNo);
+            if (stock && stock.Average && !isNaN(parseFloat(stock.Average))) {
+                console.log(`[Stock Price] Found ${stockNo} in TPEx OTC.`);
+                return { price: parseFloat(stock.Average), date: parseMinguoDate(stock.Date) };
+            }
+        }
+    } catch (e) { console.error(`[Stock Price] Error fetching TPEx OTC data: ${e.message}`); }
+
+    // Source 2: TPEx Emerging Market
+    try {
+        const url = 'https://www.tpex.org.tw/openapi/v1/tpex_esb_latest_statistics';
+        const response = await fetch(url);
+        if (response.ok) {
+            const data = await response.json();
+            const stock = data.find(s => s.SecuritiesCompanyCode === stockNo);
+            if (stock && stock.PreviousAveragePrice && !isNaN(parseFloat(stock.PreviousAveragePrice))) {
+                console.log(`[Stock Price] Found ${stockNo} in TPEx Emerging.`);
+                return { price: parseFloat(stock.PreviousAveragePrice), date: parseMinguoDate(stock.Date) };
+            }
+        }
+    } catch (e) { console.error(`[Stock Price] Error fetching TPEx Emerging data: ${e.message}`); }
+
+    // Source 3: TWSE Listed
+    try {
+        const url = 'https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_AVG_ALL';
+        const response = await fetch(url);
+        if (response.ok) {
+            const data = await response.json();
+            const stock = data.find(s => s.Code === stockNo);
+            if (stock && stock.ClosingPrice && !isNaN(parseFloat(stock.ClosingPrice))) {
+                console.log(`[Stock Price] Found ${stockNo} in TWSE.`);
+                const date = new Date();
+                const year = date.getFullYear();
+                const month = (date.getMonth() + 1).toString().padStart(2, '0');
+                // Note: This API provides daily data but the date isn't in the response, so we use the current date.
+                return { price: parseFloat(stock.ClosingPrice), date: `${year}-${month}-${date.getDate()}` };
+            }
+        }
+    } catch (e) { console.error(`[Stock Price] Error fetching TWSE data: ${e.message}`); }
+
+    console.error(`[Stock Price] Failed to find a valid price for ${stockNo} in any source.`);
+    return null;
+}
+
+
+app.post('/api/market-cap', async (req, res) => {
+    const { companyCode } = req.body;
+    if (!companyCode) {
+        return res.status(400).json({ error: 'companyCode is required.' });
+    }
+    console.log(`[Market Cap API] Received request for ${companyCode}`);
+
+    try {
+        const issuedShares = await getIssuedShares(companyCode);
+        if (!issuedShares || isNaN(issuedShares)) {
+            console.error(`[Market Cap API] Failed to get valid issued shares for ${companyCode}.`);
+            return res.status(404).json({ error: 'Could not retrieve issued shares.' });
+        }
+        console.log(`[Market Cap API] Got issued shares for ${companyCode}: ${issuedShares}`);
+
+        const stockPriceData = await getStockPrice(companyCode);
+        if (!stockPriceData || !stockPriceData.price || isNaN(stockPriceData.price)) {
+            console.error(`[Market Cap API] Failed to get valid stock price for ${companyCode}.`);
+            return res.status(404).json({ error: 'Could not retrieve stock price.' });
+        }
+        console.log(`[Market Cap API] Got stock price for ${companyCode}:`, stockPriceData);
+
+        const marketCapTWD = issuedShares * stockPriceData.price;
+        const marketCapUSD = marketCapTWD / 30; // Using fixed rate
+        
+        res.json({
+            companyCode,
+            marketCap: marketCapTWD,
+            marketCapUSD: marketCapUSD,
+            issuedShares,
+            stockPrice: stockPriceData.price,
+            priceDate: stockPriceData.date
+        });
+
+    } catch (error) {
+        console.error(`❌ Market Cap API error for ${companyCode}:`, error);
+        res.status(500).json({ error: 'Failed to fetch market cap data', message: error.message });
+    }
+});
+
+
 app.get('/api/search-company', async (req, res) => {
     const query = req.query.q;
     if (!query || query.length < 1) {
@@ -208,3 +346,21 @@ const PORT = process.env.PORT || 3001;
         console.log(`✅ Server running at http://0.0.0.0:${PORT}`);
     });
 })();
+
+// Graceful shutdown
+process.on('SIGINT', () => {
+    console.log('\n👋 Shutting down server...');
+    const db = getDb();
+    if (db) {
+        db.close((err) => {
+            if (err) {
+                console.error('❌ Error closing the database', err.message);
+            } else {
+                console.log('✅ Database connection closed.');
+            }
+            process.exit(0);
+        });
+    } else {
+        process.exit(0);
+    }
+});
