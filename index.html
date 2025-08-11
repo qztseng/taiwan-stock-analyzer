@@ -770,10 +770,10 @@
                 document.getElementById('companyName1').style.display = 'block';
 
                 if (marketCap1 && marketCap1.marketCap) {
-                    const marketCapTWDStr = marketCap1.marketCap.toLocaleString('en-US', { maximumFractionDigits: 0 });
-                    const marketCapUSDStr = marketCap1.marketCapUSD.toLocaleString('en-US', { maximumFractionDigits: 0 });
+                    const marketCapTWD_Yi = (marketCap1.marketCap / 100000000).toFixed(2);
+                    const marketCapUSD_M = (marketCap1.marketCapUSD / 1000000).toFixed(2);
                     const marketCapText = `
-                        Market Cap. <b>${marketCapTWDStr} TWD</b> (~${marketCapUSDStr} USD)<br>
+                        Market Cap. <b>${marketCapTWD_Yi}億 TWD</b> (~${marketCapUSD_M}M USD)<br>
                         Total issued share: ${marketCap1.issuedShares.toLocaleString()}<br>
                         Latest price: ${marketCap1.stockPrice} TWD (quoted on ${marketCap1.priceDate})
                     `;
@@ -794,10 +794,10 @@
                     document.getElementById('companyName2').textContent = `${name2} (${code2})`;
                     document.getElementById('companyName2').style.display = 'block';
                      if (marketCap2 && marketCap2.marketCap) {
-                        const marketCapTWDStr = marketCap2.marketCap.toLocaleString('en-US', { maximumFractionDigits: 0 });
-                        const marketCapUSDStr = marketCap2.marketCapUSD.toLocaleString('en-US', { maximumFractionDigits: 0 });
+                        const marketCapTWD_Yi = (marketCap2.marketCap / 100000000).toFixed(2);
+                        const marketCapUSD_M = (marketCap2.marketCapUSD / 1000000).toFixed(2);
                         const marketCapText = `
-                            Market Cap. <b>${marketCapTWDStr} TWD</b> (~${marketCapUSDStr} USD)<br>
+                            Market Cap. <b>${marketCapTWD_Yi}億 TWD</b> (~${marketCapUSD_M}M USD)<br>
                             Total issued share: ${marketCap2.issuedShares.toLocaleString()}<br>
                             Latest price: ${marketCap2.stockPrice} TWD (quoted on ${marketCap2.priceDate})
                         `;

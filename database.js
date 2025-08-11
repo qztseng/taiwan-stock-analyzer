@@ -36,6 +36,18 @@ async function initializeDatabase() {
             );
         `);
 
+        await db.exec(`
+            CREATE TABLE IF NOT EXISTS market_caps (
+                company_code TEXT PRIMARY KEY,
+                price_date TEXT NOT NULL,
+                stock_price REAL NOT NULL,
+                issued_shares INTEGER NOT NULL,
+                market_cap_twd REAL NOT NULL,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY (company_code) REFERENCES companies(code)
+            );
+        `);
+
         console.log('✅ Tables initialized successfully.');
         return db;
     } catch (error) {

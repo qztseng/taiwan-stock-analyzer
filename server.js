@@ -184,37 +184,70 @@ app.post('/api/market-cap', async (req, res) => {
     if (!companyCode) {
         return res.status(400).json({ error: 'companyCode is required.' });
     }
-    console.log(`[Market Cap API] Received request for ${companyCode}`);
+    
+    const db = getDb();
+    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
 
     try {
+        // 1. Check for a fresh cache entry
+        const cached = await db.get(
+            'SELECT * FROM market_caps WHERE company_code = ? AND updated_at = ?',
+            companyCode, today
+        );
+
+        if (cached) {
+            console.log(`[Cache] HIT for Market Cap ${companyCode}`);
+            return res.json({
+                companyCode: cached.company_code,
+                marketCap: cached.market_cap_twd,
+                marketCapUSD: cached.market_cap_twd / 30, // Recalculate to be safe
+                issuedShares: cached.issued_shares,
+                stockPrice: cached.stock_price,
+                priceDate: cached.price_date
+            });
+        }
+
+        console.log(`[Cache] MISS for Market Cap ${companyCode}. Fetching from APIs...`);
+        
+        // 2. If no cache, fetch from APIs
         const issuedShares = await getIssuedShares(companyCode);
         if (!issuedShares || isNaN(issuedShares)) {
-            console.error(`[Market Cap API] Failed to get valid issued shares for ${companyCode}.`);
-            return res.status(404).json({ error: 'Could not retrieve issued shares.' });
+            throw new Error('Could not retrieve valid issued shares.');
         }
-        console.log(`[Market Cap API] Got issued shares for ${companyCode}: ${issuedShares}`);
 
         const stockPriceData = await getStockPrice(companyCode);
         if (!stockPriceData || !stockPriceData.price || isNaN(stockPriceData.price)) {
-            console.error(`[Market Cap API] Failed to get valid stock price for ${companyCode}.`);
-            return res.status(404).json({ error: 'Could not retrieve stock price.' });
+            throw new Error('Could not retrieve valid stock price.');
         }
-        console.log(`[Market Cap API] Got stock price for ${companyCode}:`, stockPriceData);
 
         const marketCapTWD = issuedShares * stockPriceData.price;
-        const marketCapUSD = marketCapTWD / 30; // Using fixed rate
-        
+
+        // 3. Store the new data in the cache
+        await db.run(
+            `INSERT OR REPLACE INTO market_caps 
+             (company_code, price_date, stock_price, issued_shares, market_cap_twd, updated_at) 
+             VALUES (?, ?, ?, ?, ?, ?)`,
+            companyCode,
+            stockPriceData.date,
+            stockPriceData.price,
+            issuedShares,
+            marketCapTWD,
+            today
+        );
+        console.log(`[Cache] STORED for Market Cap ${companyCode}`);
+
+        // 4. Return the newly fetched data
         res.json({
             companyCode,
             marketCap: marketCapTWD,
-            marketCapUSD: marketCapUSD,
+            marketCapUSD: marketCapTWD / 30,
             issuedShares,
             stockPrice: stockPriceData.price,
             priceDate: stockPriceData.date
         });
 
     } catch (error) {
-        console.error(`❌ Market Cap API error for ${companyCode}:`, error);
+        console.error(`❌ Market Cap API error for ${companyCode}:`, error.message);
         res.status(500).json({ error: 'Failed to fetch market cap data', message: error.message });
     }
 });
