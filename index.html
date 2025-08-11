@@ -639,34 +639,68 @@
             const charts = [monthlyChart, monthlyYoYChart, quarterlyChart, quarterlyYoYChart, yearlyChart, yearlyYoYChart];
             charts.forEach(chart => { if(chart) chart.destroy(); });
 
-            const createChart = (ctx, type, labels, datasets) => new Chart(ctx, { type, data: { labels, datasets }, options: { responsive: true, maintainAspectRatio: false } });
-            const createLineChart = (ctx, labels, datasets) => createChart(ctx, 'line', labels, datasets);
-            const createBarChart = (ctx, labels, datasets) => createChart(ctx, 'bar', labels, datasets);
+            const revenueChartOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Revenue (TWD, Millions)'
+                        }
+                    }
+                }
+            };
 
-            monthlyChart = createBarChart(document.getElementById('monthlyChart').getContext('2d'), data.monthlyData.map(d => d.date), [
+            const yoyChartOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'YoY Growth (%)'
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                return value.toFixed(2) + '%';
+                            }
+                        }
+                    }
+                }
+            };
+
+            const createChart = (ctx, type, labels, datasets, options) => new Chart(ctx, { type, data: { labels, datasets }, options });
+
+            monthlyChart = createChart(document.getElementById('monthlyChart').getContext('2d'), 'bar', data.monthlyData.map(d => d.date), [
                 { label: n1, data: data.monthlyData.map(d => d.revenue1), backgroundColor: 'rgba(102, 126, 234, 0.7)' },
                 { label: n2, data: data.monthlyData.map(d => d.revenue2), backgroundColor: 'rgba(52, 152, 219, 0.7)' }
-            ]);
-            monthlyYoYChart = createLineChart(document.getElementById('monthlyYoYChart').getContext('2d'), data.monthlyData.map(d => d.date), [
+            ], revenueChartOptions);
+
+            monthlyYoYChart = createChart(document.getElementById('monthlyYoYChart').getContext('2d'), 'line', data.monthlyData.map(d => d.date), [
                 { label: `${n1} YoY %`, data: data.monthlyData.map(d => d.yoy1), borderColor: '#e74c3c', backgroundColor: 'rgba(231, 76, 60, 0.1)', borderWidth: 2, fill: true },
                 { label: `${n2} YoY %`, data: data.monthlyData.map(d => d.yoy2), borderColor: '#f39c12', backgroundColor: 'rgba(243, 156, 18, 0.1)', borderWidth: 2, fill: true, borderDash: [5, 5] }
-            ]);
-            quarterlyChart = createBarChart(document.getElementById('quarterlyChart').getContext('2d'), data.quarterlyArray.map(d => d.date), [
+            ], yoyChartOptions);
+
+            quarterlyChart = createChart(document.getElementById('quarterlyChart').getContext('2d'), 'bar', data.quarterlyArray.map(d => d.date), [
                 { label: n1, data: data.quarterlyArray.map(d => d.revenue1), backgroundColor: 'rgba(102, 126, 234, 0.7)' },
                 { label: n2, data: data.quarterlyArray.map(d => d.revenue2), backgroundColor: 'rgba(52, 152, 219, 0.7)' }
-            ]);
-            quarterlyYoYChart = createLineChart(document.getElementById('quarterlyYoYChart').getContext('2d'), data.quarterlyArray.map(d => d.date), [
+            ], revenueChartOptions);
+
+            quarterlyYoYChart = createChart(document.getElementById('quarterlyYoYChart').getContext('2d'), 'line', data.quarterlyArray.map(d => d.date), [
                 { label: `${n1} YoY %`, data: data.quarterlyArray.map(d => d.yoy1), borderColor: '#e74c3c', backgroundColor: 'rgba(231, 76, 60, 0.1)', borderWidth: 2, fill: true },
                 { label: `${n2} YoY %`, data: data.quarterlyArray.map(d => d.yoy2), borderColor: '#f39c12', backgroundColor: 'rgba(243, 156, 18, 0.1)', borderWidth: 2, fill: true, borderDash: [5, 5] }
-            ]);
-            yearlyChart = createBarChart(document.getElementById('yearlyChart').getContext('2d'), data.yearlyArray.map(d => d.date), [
+            ], yoyChartOptions);
+
+            yearlyChart = createChart(document.getElementById('yearlyChart').getContext('2d'), 'bar', data.yearlyArray.map(d => d.date), [
                 { label: n1, data: data.yearlyArray.map(d => d.revenue1), backgroundColor: 'rgba(102, 126, 234, 0.7)' },
                 { label: n2, data: data.yearlyArray.map(d => d.revenue2), backgroundColor: 'rgba(52, 152, 219, 0.7)' }
-            ]);
-            yearlyYoYChart = createLineChart(document.getElementById('yearlyYoYChart').getContext('2d'), data.yearlyArray.map(d => d.date), [
+            ], revenueChartOptions);
+
+            yearlyYoYChart = createChart(document.getElementById('yearlyYoYChart').getContext('2d'), 'line', data.yearlyArray.map(d => d.date), [
                 { label: `${n1} YoY %`, data: data.yearlyArray.map(d => d.yoy1), borderColor: '#e74c3c', backgroundColor: 'rgba(231, 76, 60, 0.1)', borderWidth: 2, fill: true },
                 { label: `${n2} YoY %`, data: data.yearlyArray.map(d => d.yoy2), borderColor: '#f39c12', backgroundColor: 'rgba(243, 156, 18, 0.1)', borderWidth: 2, fill: true, borderDash: [5, 5] }
-            ]);
+            ], yoyChartOptions);
 
             document.getElementById('toggleCompany1').onchange = updateChartVisibility;
             document.getElementById('toggleCompany2').onchange = updateChartVisibility;
