@@ -1,33 +1,22 @@
 
 const fetch = require('node-fetch');
 
-async function testMopsApi() {
+async function testNewMopsPayload() {
     const code = '2330';
-    const year = 2023;
+    const year = 2024;
     const month = 1;
 
-    console.log(`[INFO] Testing MOPS API for company ${code}, date ${year}-${month}`);
+    console.log(`[INFO] Testing MOPS API with new payload for company ${code}, date ${year}-${month}`);
 
-    const requestBody = {
-        "color": "true",
-        "come": "https://mops.twse.com.tw/mops/web/t05st10_ifrs",
-        "co_id": code,
-        "encodeURIComponent": "1",
-        "step": "1",
-        "firstin": "1",
-        "off": "1",
-        "keyword4": "",
-        "code1": "",
-        "TYPEK": "all",
-        "check_k": "",
-        "queryName": "co_id",
-        "inpuType": "co_id",
-        "isnew": "false",
-        "year": String(year - 1911),
-        "month": String(month).padStart(2, '0'),
+    const mopsPayload = {
+        companyId: code,
+        dataType: '2',
+        month: String(month),
+        year: String(year - 1911),
+        subsidiaryCompanyId: ''
     };
 
-    console.log('[INFO] Sending request with body:', JSON.stringify(requestBody, null, 2));
+    console.log('[INFO] Sending request with body:', JSON.stringify(mopsPayload, null, 2));
 
     try {
         const response = await fetch('https://mops.twse.com.tw/mops/api/t05st10_ifrs', {
@@ -40,21 +29,13 @@ async function testMopsApi() {
                 'Origin': 'https://mops.twse.com.tw',
                 'Accept-Language': 'zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7'
             },
-            body: JSON.stringify(requestBody)
+            body: JSON.stringify(mopsPayload)
         });
 
         console.log('[INFO] Received response with status:', response.status);
-        console.log('[INFO] Response headers:', response.headers.raw());
-
         const rawText = await response.text();
         console.log('[INFO] Raw response text:', rawText);
 
-        if (!rawText.trim().startsWith('{')) {
-            console.error('[ERROR] Response is not JSON. It is likely an HTML error page from MOPS.');
-            return;
-        }
-
-        console.log('[INFO] Attempting to parse JSON...');
         const apiData = JSON.parse(rawText);
         console.log('[SUCCESS] Successfully parsed JSON response:');
         console.log(JSON.stringify(apiData, null, 2));
@@ -64,4 +45,4 @@ async function testMopsApi() {
     }
 }
 
-testMopsApi();
+testNewMopsPayload();

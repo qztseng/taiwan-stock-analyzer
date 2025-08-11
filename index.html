@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Taiwan Stock Revenue Analyzer</title>
+    <title>Taiwan Stock Revenue Analyzer V2</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <style>
         * {
@@ -70,6 +70,7 @@
         .form-group {
             flex: 1;
             min-width: 200px;
+            position: relative;
         }
         .form-group label {
             display: block;
@@ -110,6 +111,31 @@
             opacity: 0.6;
             cursor: not-allowed;
             transform: none;
+        }
+        .autocomplete-suggestions {
+            position: absolute;
+            border: 1px solid #dee2e6;
+            border-top: none;
+            z-index: 99;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border-radius: 0 0 8px 8px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .autocomplete-suggestions div {
+            padding: 12px 15px;
+            cursor: pointer;
+        }
+        .autocomplete-suggestions div:hover {
+            background-color: #f1f1f1;
+        }
+        .autocomplete-suggestions .active {
+            background-color: #667eea;
+            color: white;
         }
 
         /* Toggle Switch */
@@ -200,23 +226,6 @@
             text-align: center;
             font-weight: 600;
         }
-        .chart-controls {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 10px;
-        }
-        .download-btn {
-            background: #28a745;
-            color: white;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 6px;
-            font-size: 14px;
-            cursor: pointer;
-        }
-        .download-btn:hover {
-            background: #218838;
-        }
         .chart-container {
             position: relative;
             height: 400px;
@@ -292,30 +301,6 @@
             border: 1px solid #c3e6cb;
             border-left: 4px solid #28a745;
         }
-        .log-container {
-            display: none;
-            background: #2c3e50;
-            color: #ecf0f1;
-            font-family: 'Courier New', Courier, monospace;
-            padding: 15px;
-            border-radius: 8px;
-            margin: 15px 0;
-            max-height: 200px;
-            overflow-y: auto;
-            font-size: 14px;
-            border: 1px solid #34495e;
-            box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
-        }
-        .log-container p {
-            margin: 0;
-            padding: 3px 0;
-            border-bottom: 1px solid #34495e;
-            white-space: pre-wrap;
-            word-break: break-all;
-        }
-        .log-container p:last-child {
-            border-bottom: none;
-        }
         @media (max-width: 768px) {
             .input-group {
                 flex-direction: column;
@@ -336,7 +321,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🏢 Taiwan Stock Revenue Analyzer</h1>
+            <h1>🏢 Taiwan Stock Revenue Analyzer V2</h1>
             <div id="companyNames" style="margin-top: 10px;">
                 <div id="companyName1" class="company-name" style="display: none;"></div>
                 <div id="companyName2" class="company-name" style="display: none;"></div>
@@ -346,12 +331,16 @@
         <div class="input-section">
             <div class="input-group">
                 <div class="form-group">
-                    <label for="companyCode1">Company Code 1 (主公司)</label>
-                    <input type="text" id="companyCode1" value="6857" placeholder="e.g., 6857, 2330">
+                    <label for="companySearch1">Company 1 (主公司)</label>
+                    <input type="text" id="companySearch1" placeholder="Search by code or name..." autocomplete="off">
+                    <input type="hidden" id="companyCode1">
+                    <div class="autocomplete-suggestions" id="suggestions1"></div>
                 </div>
                 <div class="form-group">
-                    <label for="companyCode2">Company Code 2 (比較公司)</label>
-                    <input type="text" id="companyCode2" value="2330" placeholder="e.g., 2330, 2317 (可留空)">
+                    <label for="companySearch2">Company 2 (比較公司)</label>
+                    <input type="text" id="companySearch2" placeholder="Search or leave blank..." autocomplete="off">
+                    <input type="hidden" id="companyCode2">
+                    <div class="autocomplete-suggestions" id="suggestions2"></div>
                 </div>
                 <div class="form-group">
                     <label for="startDate">Start Date (起始日期)</label>
@@ -365,10 +354,8 @@
 
         <div id="loading" class="loading">
             <div class="spinner"></div>
-            Fetching financial data... (See logs below)
+            Fetching financial data... This may take a moment.
         </div>
-
-        <div id="logContainer" class="log-container"></div>
 
         <div id="errorContainer"></div>
 
@@ -387,53 +374,19 @@
         </div>
 
         <div id="chartsContainer" class="charts-container">
-            <!-- Monthly Revenue -->
-            <div class="chart-card">
-                <h3>📈 Monthly Revenue Trend</h3>
-                <div class="chart-container">
-                    <canvas id="monthlyChart"></canvas>
-                </div>
-            </div>
-            <!-- Monthly YoY -->
-            <div class="chart-card">
-                <h3>📈 Monthly YoY Change</h3>
-                <div class="chart-container">
-                    <canvas id="monthlyYoYChart"></canvas>
-                </div>
-            </div>
-            <!-- Quarterly Revenue -->
-            <div class="chart-card">
-                <h3>📊 Quarterly Revenue Trend</h3>
-                <div class="chart-container">
-                    <canvas id="quarterlyChart"></canvas>
-                </div>
-            </div>
-            <!-- Quarterly YoY -->
-            <div class="chart-card">
-                <h3>📊 Quarterly YoY Change</h3>
-                <div class="chart-container">
-                    <canvas id="quarterlyYoYChart"></canvas>
-                </div>
-            </div>
-            <!-- Yearly Revenue -->
-            <div class="chart-card">
-                <h3>📅 Yearly Revenue Trend</h3>
-                <div class="chart-container">
-                    <canvas id="yearlyChart"></canvas>
-                </div>
-            </div>
-            <!-- Yearly YoY -->
-            <div class="chart-card">
-                <h3>📅 Yearly YoY Change</h3>
-                <div class="chart-container">
-                    <canvas id="yearlyYoYChart"></canvas>
-                </div>
-            </div>
+            <!-- Chart canvases remain the same -->
+            <div class="chart-card"><h3>📈 Monthly Revenue Trend</h3><div class="chart-container"><canvas id="monthlyChart"></canvas></div></div>
+            <div class="chart-card"><h3>📈 Monthly YoY Change</h3><div class="chart-container"><canvas id="monthlyYoYChart"></canvas></div></div>
+            <div class="chart-card"><h3>📊 Quarterly Revenue Trend</h3><div class="chart-container"><canvas id="quarterlyChart"></canvas></div></div>
+            <div class="chart-card"><h3>📊 Quarterly YoY Change</h3><div class="chart-container"><canvas id="quarterlyYoYChart"></canvas></div></div>
+            <div class="chart-card"><h3>📅 Yearly Revenue Trend</h3><div class="chart-container"><canvas id="yearlyChart"></canvas></div></div>
+            <div class="chart-card"><h3>📅 Yearly YoY Change</h3><div class="chart-container"><canvas id="yearlyYoYChart"></canvas></div></div>
         </div>
 
         <div id="dataTableContainer" class="data-table-container">
             <h3>📋 Monthly Revenue Data</h3>
             <table id="dataTable" class="data-table">
+                <!-- Table structure remains the same -->
                 <thead>
                     <tr>
                         <th>Date</th>
@@ -442,12 +395,12 @@
                     </tr>
                     <tr>
                         <th></th>
-                        <th>Revenue</th>
+                        <th>Revenue (M)</th>
                         <th>YoY %</th>
-                        <th>YTD</th>
-                        <th>Revenue</th>
+                        <th>YTD (M)</th>
+                        <th>Revenue (M)</th>
                         <th>YoY %</th>
-                        <th>YTD</th>
+                        <th>YTD (M)</th>
                     </tr>
                 </thead>
                 <tbody id="dataTableBody">
@@ -458,127 +411,105 @@
 
     <script>
         let monthlyChart, monthlyYoYChart, quarterlyChart, quarterlyYoYChart, yearlyChart, yearlyYoYChart;
-        let allResults1 = [], allResults2 = [];
-
-        function toMinguoYear(year) {
-            return year - 1911;
-        }
-
-        function generateMonths(startYear, startMonth) {
-            const current = new Date();
-            let year = startYear;
-            let month = startMonth;
-            const months = [];
-            const endYear = current.getFullYear();
-            const endMonth = current.getMonth() + 1;
-
-            while (year < endYear || (year === endYear && month <= endMonth)) {
-                months.push([year, month]);
-                month += 1;
-                if (month > 12) {
-                    year += 1;
-                    month = 1;
-                }
-            }
-            return months;
-        }
+        let allData1 = [], allData2 = [];
 
         const API_CONFIG = {
-            PROXY_URL: 'http://localhost:3001/api/taiwan-mops',
+            SEARCH_URL: 'http://localhost:3001/api/search-company',
+            REVENUE_URL: 'http://localhost:3001/api/revenue',
         };
 
-        async function fetchRevenue(companyId, year, month) {
-            const minguoYear = toMinguoYear(year);
-            const payload = {
-                companyId: companyId,
-                dataType: "2",
-                month: month.toString(),
-                year: minguoYear.toString(),
-                subsidiaryCompanyId: ""
-            };
+        // --- Autocomplete Feature ---
+        function setupAutocomplete(inputId, suggestionsId, codeId) {
+            const searchInput = document.getElementById(inputId);
+            const suggestionsContainer = document.getElementById(suggestionsId);
+            const codeInput = document.getElementById(codeId);
 
+            searchInput.addEventListener('input', async () => {
+                const query = searchInput.value;
+                if (query.length < 1) {
+                    suggestionsContainer.innerHTML = '';
+                    suggestionsContainer.style.display = 'none';
+                    codeInput.value = '';
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`${API_CONFIG.SEARCH_URL}?q=${encodeURIComponent(query)}`);
+                    const companies = await response.json();
+                    
+                    suggestionsContainer.innerHTML = '';
+                    if (companies.length > 0) {
+                        companies.forEach(company => {
+                            const div = document.createElement('div');
+                            div.textContent = `${company.code} - ${company.name}`;
+                            div.dataset.code = company.code;
+                            div.dataset.name = company.name;
+                            div.addEventListener('click', () => {
+                                searchInput.value = `${company.code} - ${company.name}`;
+                                codeInput.value = company.code;
+                                suggestionsContainer.innerHTML = '';
+                                suggestionsContainer.style.display = 'none';
+                            });
+                            suggestionsContainer.appendChild(div);
+                        });
+                        suggestionsContainer.style.display = 'block';
+                    } else {
+                        suggestionsContainer.style.display = 'none';
+                    }
+                } catch (error) {
+                    console.error('Autocomplete fetch error:', error);
+                }
+            });
+
+            document.addEventListener('click', (e) => {
+                if (e.target !== searchInput) {
+                    suggestionsContainer.style.display = 'none';
+                }
+            });
+        }
+
+        setupAutocomplete('companySearch1', 'suggestions1', 'companyCode1');
+        setupAutocomplete('companySearch2', 'suggestions2', 'companyCode2');
+
+        // --- Data Fetching (New) ---
+        async function fetchRevenueData(companyCode, startDate) {
+            if (!companyCode) return null;
             try {
-                const response = await fetch(API_CONFIG.PROXY_URL, {
+                const response = await fetch(API_CONFIG.REVENUE_URL, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify(payload)
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ companyCode, startDate })
                 });
-
                 if (!response.ok) {
-                    throw new Error(`Proxy error: ${response.status}`);
+                    const err = await response.json();
+                    throw new Error(err.message || `Server error: ${response.status}`);
                 }
-
-                const data = await response.json();
-                if (data.code !== 200) {
-                    throw new Error(data.message || 'API returned error');
-                }
-                
-                const parsed = parseAPIResponse(data, year, month);
-                if (parsed) {
-                    logToUI(`Success for ${companyId} (${year}-${month}): Revenue ${parsed.revenue.toLocaleString()}M`, 'success');
-                }
-                return parsed;
-
+                return await response.json();
             } catch (error) {
-                logToUI(`Error for ${companyId} (${year}-${month}): ${error.message}`, 'error');
+                console.error(`Error fetching revenue for ${companyCode}:`, error);
+                showError(`Failed to fetch data for ${companyCode}: ${error.message}`);
                 return null;
             }
         }
 
-        function parseAPIResponse(apiResponse, year, month) {
-            if (!apiResponse || !apiResponse.result || !apiResponse.result.data) {
-                return null;
-            }
+        // --- Data Processing (Adapted) ---
+        function processComparisonData(results1, results2) {
+            const allMonths = new Set([
+                ...results1.map(d => `${d.year}-${String(d.month).padStart(2, '0')}`),
+                ...results2.map(d => `${d.year}-${String(d.month).padStart(2, '0')}`)
+            ]);
+            const sortedMonths = Array.from(allMonths).sort();
 
-            const data = apiResponse.result.data;
-            const companyName = apiResponse.result.companyAbbreviation;
-
-            const findValue = (key) => {
-                const item = data.find(d => d[0] === key);
-                const value = item ? item[1] : null;
-                return value ? value.replace(/,/g, '') : null;
-            };
-
-            const revenueStr = findValue('本月');
-            const lastYearRevenueStr = findValue('去年同期');
-            const ytdRevenueStr = findValue('本年累計');
-
-            if (revenueStr === null) return null;
-
-            const revenue = parseFloat(revenueStr);
-            const lastYearRevenue = parseFloat(lastYearRevenueStr);
-            const ytdRevenue = parseFloat(ytdRevenueStr);
-
-            const revenueInMillions = revenue / 1000;
-            const lastYearRevenueInMillions = lastYearRevenue / 1000;
-            const ytdRevenueInMillions = ytdRevenue / 1000;
-
-            const changePercent = lastYearRevenue > 0 ? ((revenue - lastYearRevenue) / lastYearRevenue) * 100 : 0;
-
-            return {
-                companyName: companyName,
-                year: year,
-                month: month,
-                revenue: revenueInMillions,
-                lastYearRevenue: lastYearRevenueInMillions,
-                changePercent: changePercent,
-                ytdRevenue: ytdRevenueInMillions.toLocaleString()
-            };
-        }
-
-        function processComparisonData(results1, results2, months) {
-            const monthlyData = months.map(([year, month]) => {
+            const monthlyData = sortedMonths.map(dateStr => {
+                const [year, month] = dateStr.split('-').map(Number);
                 const r1 = results1.find(r => r && r.year === year && r.month === month);
                 const r2 = results2.find(r => r && r.year === year && r.month === month);
                 return {
-                    date: `${year}-${String(month).padStart(2, '0')}`,
+                    date: dateStr,
                     revenue1: r1?.revenue ?? null,
                     revenue2: r2?.revenue ?? null,
-                    yoy1: r1?.changePercent ?? null,
-                    yoy2: r2?.changePercent ?? null
+                    yoy1: r1?.yoy_percent ?? null,
+                    yoy2: r2?.yoy_percent ?? null
                 };
             });
 
@@ -587,17 +518,29 @@
                 const q = Math.ceil(parseInt(d.date.split('-')[1]) / 3);
                 const year = d.date.split('-')[0];
                 const key = `${year}Q${q}`;
-                if (!quarterlyData[key]) quarterlyData[key] = { revenue1: 0, revenue2: 0, lastYearRevenue1: 0, lastYearRevenue2: 0 };
-                if (d.revenue1 !== null) quarterlyData[key].revenue1 += d.revenue1;
-                if (d.revenue2 !== null) quarterlyData[key].revenue2 += d.revenue2;
+                if (!quarterlyData[key]) quarterlyData[key] = { revenue1: 0, revenue2: 0, count1: 0, count2: 0 };
+                if (d.revenue1 !== null) {
+                    quarterlyData[key].revenue1 += d.revenue1;
+                    quarterlyData[key].count1++;
+                }
+                if (d.revenue2 !== null) {
+                    quarterlyData[key].revenue2 += d.revenue2;
+                    quarterlyData[key].count2++;
+                }
             });
 
             Object.keys(quarterlyData).forEach(key => {
                 const [year, q] = key.split('Q');
                 const lastYearKey = `${parseInt(year) - 1}Q${q}`;
                 if (quarterlyData[lastYearKey]) {
-                    quarterlyData[key].lastYearRevenue1 = quarterlyData[lastYearKey].revenue1;
-                    quarterlyData[key].lastYearRevenue2 = quarterlyData[lastYearKey].revenue2;
+                    const lastYearQ = quarterlyData[lastYearKey];
+                    const currentQ = quarterlyData[key];
+                    if (lastYearQ.revenue1 > 0 && lastYearQ.count1 === 3 && currentQ.count1 === 3) {
+                        currentQ.yoy1 = ((currentQ.revenue1 - lastYearQ.revenue1) / lastYearQ.revenue1) * 100;
+                    }
+                    if (lastYearQ.revenue2 > 0 && lastYearQ.count2 === 3 && currentQ.count2 === 3) {
+                        currentQ.yoy2 = ((currentQ.revenue2 - lastYearQ.revenue2) / lastYearQ.revenue2) * 100;
+                    }
                 }
             });
 
@@ -605,23 +548,35 @@
                 date: key,
                 revenue1: q.revenue1,
                 revenue2: q.revenue2,
-                yoy1: q.lastYearRevenue1 > 0 ? ((q.revenue1 - q.lastYearRevenue1) / q.lastYearRevenue1) * 100 : null,
-                yoy2: q.lastYearRevenue2 > 0 ? ((q.revenue2 - q.lastYearRevenue2) / q.lastYearRevenue2) * 100 : null,
+                yoy1: q.yoy1 ?? null,
+                yoy2: q.yoy2 ?? null,
             })).sort((a, b) => a.date.localeCompare(b.date));
 
             const yearlyData = {};
             monthlyData.forEach(d => {
                 const year = d.date.split('-')[0];
-                if (!yearlyData[year]) yearlyData[year] = { revenue1: 0, revenue2: 0, lastYearRevenue1: 0, lastYearRevenue2: 0 };
-                if (d.revenue1 !== null) yearlyData[year].revenue1 += d.revenue1;
-                if (d.revenue2 !== null) yearlyData[year].revenue2 += d.revenue2;
+                if (!yearlyData[year]) yearlyData[year] = { revenue1: 0, revenue2: 0, count1: 0, count2: 0 };
+                if (d.revenue1 !== null) {
+                    yearlyData[year].revenue1 += d.revenue1;
+                    yearlyData[year].count1++;
+                }
+                if (d.revenue2 !== null) {
+                    yearlyData[year].revenue2 += d.revenue2;
+                    yearlyData[year].count2++;
+                }
             });
             
             Object.keys(yearlyData).forEach(year => {
                 const lastYear = parseInt(year) - 1;
                 if (yearlyData[lastYear]) {
-                    yearlyData[year].lastYearRevenue1 = yearlyData[lastYear].revenue1;
-                    yearlyData[year].lastYearRevenue2 = yearlyData[lastYear].revenue2;
+                    const lastY = yearlyData[lastYear];
+                    const currentY = yearlyData[year];
+                    if (lastY.revenue1 > 0 && lastY.count1 === 12 && currentY.count1 === 12) {
+                       currentY.yoy1 = ((currentY.revenue1 - lastY.revenue1) / lastY.revenue1) * 100;
+                    }
+                     if (lastY.revenue2 > 0 && lastY.count2 === 12 && currentY.count2 === 12) {
+                       currentY.yoy2 = ((currentY.revenue2 - lastY.revenue2) / lastY.revenue2) * 100;
+                    }
                 }
             });
 
@@ -629,13 +584,14 @@
                 date: year,
                 revenue1: y.revenue1,
                 revenue2: y.revenue2,
-                yoy1: y.lastYearRevenue1 > 0 ? ((y.revenue1 - y.lastYearRevenue1) / y.lastYearRevenue1) * 100 : null,
-                yoy2: y.lastYearRevenue2 > 0 ? ((y.revenue2 - y.lastYearRevenue2) / y.lastYearRevenue2) * 100 : null,
+                yoy1: y.yoy1 ?? null,
+                yoy2: y.yoy2 ?? null,
             })).sort((a, b) => a.date - b.date);
 
             return { monthlyData, quarterlyArray, yearlyArray };
         }
 
+        // --- Charting (Adapted) ---
         function createComparisonCharts(data, name1, name2) {
             const n1 = name1 || "Company 1";
             const n2 = name2 || "Company 2";
@@ -647,7 +603,6 @@
             const createLineChart = (ctx, labels, datasets) => createChart(ctx, 'line', labels, datasets);
             const createBarChart = (ctx, labels, datasets) => createChart(ctx, 'bar', labels, datasets);
 
-            // Monthly
             monthlyChart = createBarChart(document.getElementById('monthlyChart').getContext('2d'), data.monthlyData.map(d => d.date), [
                 { label: n1, data: data.monthlyData.map(d => d.revenue1), backgroundColor: 'rgba(102, 126, 234, 0.7)' },
                 { label: n2, data: data.monthlyData.map(d => d.revenue2), backgroundColor: 'rgba(52, 152, 219, 0.7)' }
@@ -656,8 +611,6 @@
                 { label: `${n1} YoY %`, data: data.monthlyData.map(d => d.yoy1), borderColor: '#e74c3c', backgroundColor: 'rgba(231, 76, 60, 0.1)', borderWidth: 2, fill: true },
                 { label: `${n2} YoY %`, data: data.monthlyData.map(d => d.yoy2), borderColor: '#f39c12', backgroundColor: 'rgba(243, 156, 18, 0.1)', borderWidth: 2, fill: true, borderDash: [5, 5] }
             ]);
-
-            // Quarterly
             quarterlyChart = createBarChart(document.getElementById('quarterlyChart').getContext('2d'), data.quarterlyArray.map(d => d.date), [
                 { label: n1, data: data.quarterlyArray.map(d => d.revenue1), backgroundColor: 'rgba(102, 126, 234, 0.7)' },
                 { label: n2, data: data.quarterlyArray.map(d => d.revenue2), backgroundColor: 'rgba(52, 152, 219, 0.7)' }
@@ -666,8 +619,6 @@
                 { label: `${n1} YoY %`, data: data.quarterlyArray.map(d => d.yoy1), borderColor: '#e74c3c', backgroundColor: 'rgba(231, 76, 60, 0.1)', borderWidth: 2, fill: true },
                 { label: `${n2} YoY %`, data: data.quarterlyArray.map(d => d.yoy2), borderColor: '#f39c12', backgroundColor: 'rgba(243, 156, 18, 0.1)', borderWidth: 2, fill: true, borderDash: [5, 5] }
             ]);
-
-            // Yearly
             yearlyChart = createBarChart(document.getElementById('yearlyChart').getContext('2d'), data.yearlyArray.map(d => d.date), [
                 { label: n1, data: data.yearlyArray.map(d => d.revenue1), backgroundColor: 'rgba(102, 126, 234, 0.7)' },
                 { label: n2, data: data.yearlyArray.map(d => d.revenue2), backgroundColor: 'rgba(52, 152, 219, 0.7)' }
@@ -694,91 +645,57 @@
             });
         }
 
-        function populateComparisonTable(results1, results2, months) {
+        // --- Table Population (Adapted) ---
+        function populateComparisonTable(results1, results2) {
             const tbody = document.getElementById('dataTableBody');
             tbody.innerHTML = '';
-            months.forEach(([year, month]) => {
-                const dateStr = `${year}-${String(month).padStart(2, '0')}`;
+            
+            const allMonths = new Set([
+                ...results1.map(d => `${d.year}-${String(d.month).padStart(2, '0')}`),
+                ...results2.map(d => `${d.year}-${String(d.month).padStart(2, '0')}`)
+            ]);
+            const sortedMonths = Array.from(allMonths).sort().reverse(); // Show most recent first
+
+            sortedMonths.forEach(dateStr => {
+                const [year, month] = dateStr.split('-').map(Number);
                 const r1 = results1.find(r => r && r.year === year && r.month === month);
                 const r2 = results2.find(r => r && r.year === year && r.month === month);
                 const row = tbody.insertRow();
                 row.insertCell().textContent = dateStr;
-                const formatNum = (num) => num ? num.toLocaleString() : 'N/A';
+                const formatNum = (num) => (num !== null && num !== undefined) ? num.toLocaleString(undefined, {maximumFractionDigits: 2}) : 'N/A';
                 const formatPercent = (p) => (p !== null && p !== undefined) ? `${p.toFixed(2)}%` : 'N/A';
+                
                 row.insertCell().textContent = formatNum(r1?.revenue);
                 const yoy1Cell = row.insertCell();
-                yoy1Cell.textContent = formatPercent(r1?.changePercent);
-                yoy1Cell.className = r1?.changePercent > 0 ? 'positive' : 'negative';
-                row.insertCell().textContent = r1?.ytdRevenue || 'N/A';
+                yoy1Cell.textContent = formatPercent(r1?.yoy_percent);
+                yoy1Cell.className = r1?.yoy_percent > 0 ? 'positive' : 'negative';
+                row.insertCell().textContent = formatNum(r1?.ytd_revenue);
+                
                 row.insertCell().textContent = formatNum(r2?.revenue);
                 const yoy2Cell = row.insertCell();
-                yoy2Cell.textContent = formatPercent(r2?.changePercent);
-                yoy2Cell.className = r2?.changePercent > 0 ? 'positive' : 'negative';
-                row.insertCell().textContent = r2?.ytdRevenue || 'N/A';
+                yoy2Cell.textContent = formatPercent(r2?.yoy_percent);
+                yoy2Cell.className = r2?.yoy_percent > 0 ? 'positive' : 'negative';
+                row.insertCell().textContent = formatNum(r2?.ytd_revenue);
             });
         }
 
-        function downloadCSV() {
-            if (allResults1.length === 0 && allResults2.length === 0) {
-                alert("No data to export.");
-                return;
-            }
-            const headers = "Date,Company 1 Revenue (M),Company 1 YoY %,Company 1 YTD (M),Company 2 Revenue (M),Company 2 YoY %,Company 2 YTD (M)\n";
-            const rows = [];
-            const months = generateMonths(
-                document.getElementById('startDate').value.split('-').map(Number)[0],
-                document.getElementById('startDate').value.split('-').map(Number)[1]
-            );
-            months.forEach(([year, month]) => {
-                const date = `${year}-${String(month).padStart(2, '0')}`;
-                const r1 = allResults1.find(r => r && r.year === year && r.month === month) || {};
-                const r2 = allResults2.find(r => r && r.year === year && r.month === month) || {};
-                const row = [
-                    date,
-                    r1.revenue || 'N/A',
-                    r1.changePercent ? r1.changePercent.toFixed(2) : 'N/A',
-                    r1.ytdRevenue || 'N/A',
-                    r2.revenue || 'N/A',
-                    r2.changePercent ? r2.changePercent.toFixed(2) : 'N/A',
-                    r2.ytdRevenue || 'N/A'
-                ].join(',');
-                rows.push(row);
-            });
-            const csv = headers + rows.join('\n');
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `stock_revenue_comparison_${Date.now()}.csv`;
-            a.click();
-            URL.revokeObjectURL(url);
-        }
-
+        // --- Main Application Logic (New) ---
         async function fetchAndDisplayData() {
             const code1 = document.getElementById('companyCode1').value.trim();
             const code2 = document.getElementById('companyCode2').value.trim();
-            const start = document.getElementById('startDate').value;
+            const startDate = document.getElementById('startDate').value;
 
-            if (!code1 || !start) {
-                showError('Please enter a primary company code and a start date.');
+            if (!code1 || !startDate) {
+                showError('Please select a primary company and a start date.');
                 return;
             }
 
-            const [startYear, startMonth] = start.split('-').map(Number);
-            const months = generateMonths(startYear, startMonth);
-
             const loadingDiv = document.getElementById('loading');
-            const logContainer = document.getElementById('logContainer');
             const fetchBtn = document.getElementById('fetchBtn');
             const globalControls = document.getElementById('globalToggleControls');
-            const toggleCompany1Label = document.getElementById('toggleCompany1Label');
-            const toggleCompany2Label = document.getElementById('toggleCompany2Label');
-            const toggleCompany2Switch = document.getElementById('toggleCompany2').parentElement;
 
-            // Reset UI state before fetching
+            // Reset UI
             loadingDiv.style.display = 'block';
-            logContainer.innerHTML = '';
-            logContainer.style.display = 'block';
             fetchBtn.disabled = true;
             globalControls.style.display = 'none';
             document.getElementById('chartsContainer').style.display = 'none';
@@ -787,84 +704,62 @@
             document.getElementById('companyName2').style.display = 'none';
             clearError();
 
-            // Reset toggle labels and visibility
-            toggleCompany1Label.textContent = 'Company 1';
-            toggleCompany2Label.textContent = 'Company 2';
-            const hasCompany2 = code2 !== '';
-            toggleCompany2Switch.style.display = hasCompany2 ? 'inline-block' : 'none';
-            toggleCompany2Label.style.display = hasCompany2 ? 'inline-block' : 'none';
-            document.getElementById('toggleCompany2').checked = hasCompany2;
-
-
             try {
-                const createFetchPromise = (code, y, m, index) => new Promise(resolve => setTimeout(() => {
-                    logToUI(`Fetching ${code} for ${y}-${m}...`);
-                    resolve(fetchRevenue(code, y, m));
-                }, index * 200));
+                const [result1, result2] = await Promise.all([
+                    fetchRevenueData(code1, startDate),
+                    fetchRevenueData(code2, startDate)
+                ]);
 
-                logToUI(`--- Starting fetch for ${code1} ---`);
-                const promises1 = months.map(([y, m], index) => createFetchPromise(code1, y, m, index));
-                allResults1 = await Promise.all(promises1);
-                const name1 = allResults1.find(r => r)?.companyName || '';
+                allData1 = result1 ? result1.data : [];
+                allData2 = result2 ? result2.data : [];
+                
+                const name1 = result1 ? result1.companyName : 'Company 1';
+                const name2 = result2 ? result2.companyName : 'Company 2';
 
-                if (code2) {
-                    logToUI(`--- Starting fetch for ${code2} ---`);
-                    const promises2 = months.map(([y, m], index) => createFetchPromise(code2, y, m, index));
-                    allResults2 = await Promise.all(promises2);
-                } else {
-                    allResults2 = Array(months.length).fill(null);
-                }
-                const name2 = allResults2.find(r => r)?.companyName || '';
-
-                if (name1) {
-                    document.getElementById('companyName1').textContent = `${name1} (${code1})`;
-                    document.getElementById('companyName1').style.display = 'inline-block';
-                    toggleCompany1Label.textContent = name1;
-                }
-                if (name2) {
+                // Update UI elements
+                document.getElementById('companyName1').textContent = `${name1} (${code1})`;
+                document.getElementById('companyName1').style.display = 'inline-block';
+                document.getElementById('toggleCompany1Label').textContent = name1;
+                
+                const hasCompany2 = !!code2;
+                document.getElementById('toggleCompany2').parentElement.style.display = hasCompany2 ? 'inline-block' : 'none';
+                document.getElementById('toggleCompany2Label').style.display = hasCompany2 ? 'inline-block' : 'none';
+                if (hasCompany2) {
                     document.getElementById('companyName2').textContent = `${name2} (${code2})`;
                     document.getElementById('companyName2').style.display = 'inline-block';
-                    toggleCompany2Label.textContent = name2;
+                    document.getElementById('toggleCompany2Label').textContent = name2;
+                }
+                 document.getElementById('toggleCompany2').checked = hasCompany2;
+
+
+                if (allData1.length === 0) {
+                    showError(`No data found for ${name1} (${code1}) for the selected period.`);
+                    return;
                 }
 
                 globalControls.style.display = 'flex';
-
-                const processed = processComparisonData(allResults1, allResults2, months);
+                const processed = processComparisonData(allData1, allData2);
                 createComparisonCharts(processed, name1, name2);
-                populateComparisonTable(allResults1, allResults2, months);
+                populateComparisonTable(allData1, allData2);
 
                 document.getElementById('chartsContainer').style.display = 'grid';
                 document.getElementById('dataTableContainer').style.display = 'block';
+                showSuccess('Data loaded successfully.');
 
-                if (!allResults1.some(r => r !== null)) {
-                    showError('Company 1: No data found for the selected period.');
-                } else if (code2 && !allResults2.some(r => r !== null)) {
-                    showWarning('Company 2: No data found for the selected period.');
-                } else {
-                    showSuccess('Data loaded successfully.');
+                if (code2 && allData2.length === 0) {
+                    showWarning(`No data found for ${name2} (${code2}), showing only primary company.`);
                 }
 
             } catch (err) {
                 showError(`System Error: ${err.message}`);
             } finally {
                 loadingDiv.style.display = 'none';
-                logContainer.style.display = 'none';
                 fetchBtn.disabled = false;
             }
         }
 
-        function logToUI(message, type = 'info') {
-            const logContainer = document.getElementById('logContainer');
-            const p = document.createElement('p');
-            p.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
-            if (type === 'error') p.style.color = '#e74c3c';
-            if (type === 'success') p.style.color = '#2ecc71';
-            logContainer.appendChild(p);
-            logContainer.scrollTop = logContainer.scrollHeight;
-        }
-
         function showError(msg) { document.getElementById('errorContainer').innerHTML = `<div class="error-message">❌ ${msg}</div>`; }
-        function showWarning(msg) { document.getElementById('errorContainer').innerHTML = `<div class="warning-message">⚠️ ${msg}</div>`; }
+        function showWarning(msg) { document.getElementById('errorContainer').innerHTML += `<div class="warning-message">⚠️ ${msg}</div>`; }
         function showSuccess(msg) { document.getElementById('errorContainer').innerHTML = `<div class="success-message">✅ ${msg}</div>`; }
         function clearError() { document.getElementById('errorContainer').innerHTML = ''; }
 

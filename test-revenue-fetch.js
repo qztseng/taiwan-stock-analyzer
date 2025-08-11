@@ -1,17 +1,17 @@
-
 const fetch = require('node-fetch');
 
-async function testMopsApi() {
+async function testRevenueFetch() {
     const code = '2330';
-    const year = 2023;
+    const year = 2024;
     const month = 1;
 
     console.log(`[INFO] Testing MOPS API for company ${code}, date ${year}-${month}`);
 
-    const requestBody = {
+    const mopsPayload = {
         "color": "true",
         "come": "https://mops.twse.com.tw/mops/web/t05st10_ifrs",
         "co_id": code,
+        "dataType": "2",
         "encodeURIComponent": "1",
         "step": "1",
         "firstin": "1",
@@ -27,7 +27,7 @@ async function testMopsApi() {
         "month": String(month).padStart(2, '0'),
     };
 
-    console.log('[INFO] Sending request with body:', JSON.stringify(requestBody, null, 2));
+    console.log('[INFO] Sending request with body:', JSON.stringify(mopsPayload, null, 2));
 
     try {
         const response = await fetch('https://mops.twse.com.tw/mops/api/t05st10_ifrs', {
@@ -35,33 +35,38 @@ async function testMopsApi() {
             headers: {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
-                'Referer': 'https://mops.twse.com.tw/',
-                'Origin': 'https://mops.twse.com.tw',
-                'Accept-Language': 'zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7'
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36'
             },
-            body: JSON.stringify(requestBody)
+            body: JSON.stringify(mopsPayload)
         });
 
         console.log('[INFO] Received response with status:', response.status);
-        console.log('[INFO] Response headers:', response.headers.raw());
-
         const rawText = await response.text();
         console.log('[INFO] Raw response text:', rawText);
 
-        if (!rawText.trim().startsWith('{')) {
+        if (rawText.trim().startsWith('<')) {
             console.error('[ERROR] Response is not JSON. It is likely an HTML error page from MOPS.');
             return;
         }
 
-        console.log('[INFO] Attempting to parse JSON...');
         const apiData = JSON.parse(rawText);
         console.log('[SUCCESS] Successfully parsed JSON response:');
         console.log(JSON.stringify(apiData, null, 2));
+
+        if (apiData.data) {
+            const revenueInfo = apiData.data.find(d => d.TITLE === '營業收入');
+            if (revenueInfo) {
+                console.log('[SUCCESS] Found revenue info:', JSON.stringify(revenueInfo, null, 2));
+            } else {
+                console.error('[ERROR] "營業收入" (Revenue) section not found in API data.');
+            }
+        } else {
+            console.error('[ERROR] "data" property not found in API response.');
+        }
 
     } catch (error) {
         console.error('[FATAL ERROR] An error occurred during the fetch operation:', error);
     }
 }
 
-testMopsApi();
+testRevenueFetch();

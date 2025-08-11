@@ -1,0 +1,32 @@
+{
+  "name": "taiwan-stock-analyzer",
+  "version": "1.0.0",
+  "description": "This is a web-based application designed to fetch, visualize, and compare the monthly revenue data of companies listed on the Taiwan Stock Exchange (TWSE). The user can input up to two company stock codes and a start date to generate interactive charts and a data table, allowing for easy analysis of financial trends.",
+  "main": "database.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/qztseng/taiwan-stock-analyzer.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/qztseng/taiwan-stock-analyzer/issues"
+  },
+  "homepage": "https://github.com/qztseng/taiwan-stock-analyzer#readme",
+  "dependencies": {
+    "csv-parse": "^6.1.0",
+    "express": "^5.1.0",
+    "node-fetch": "^2.7.0",
+    "sqlite": "^5.1.1",
+    "sqlite3": "^5.1.7"
+  },
+  "devDependencies": {
+    "playwright": "^1.54.2"
+  }
+}
