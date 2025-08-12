@@ -886,6 +886,26 @@
                 fetchAndDisplayData();
             }
         });
+
+        // --- Default Load ---
+        document.addEventListener('DOMContentLoaded', () => {
+            const DEFAULT_COMPANIES = {
+                c1: { code: '6841', name: '長佳智能' },
+                c2: { code: '6857', name: '宏碁智醫' }
+            };
+
+            // Set a fixed default start date
+            document.getElementById('startDate').value = '2022-01';
+
+            // Pre-fill the search inputs and hidden code inputs
+            document.getElementById('companySearch1').value = `${DEFAULT_COMPANIES.c1.code} - ${DEFAULT_COMPANIES.c1.name}`;
+            document.getElementById('companyCode1').value = DEFAULT_COMPANIES.c1.code;
+            document.getElementById('companySearch2').value = `${DEFAULT_COMPANIES.c2.code} - ${DEFAULT_COMPANIES.c2.name}`;
+            document.getElementById('companyCode2').value = DEFAULT_COMPANIES.c2.code;
+
+            // Automatically fetch and display the data
+            fetchAndDisplayData();
+        });
     </script>
 </body>
 </html>

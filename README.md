@@ -5,9 +5,10 @@ This is a web-based application designed to fetch, visualize, and compare the mo
 ## 🌟 Features
 
 -   **Comprehensive Company Search**: Dynamically search for companies by stock code or name across TSE, TPEx, and ESB markets.
--   **Efficient Data Caching**: The backend caches previously fetched revenue data in a local SQLite database, eliminating redundant API calls and speeding up subsequent requests.
+-   **Market Capitalization Display**: Fetches and displays the latest market capitalization, total issued shares, and stock price for each queried company.
+-   **Efficient Data Caching**: The backend caches both revenue and market capitalization data in a local SQLite database, eliminating redundant API calls and speeding up subsequent requests.
 -   **Company Comparison**: Analyze one or two companies simultaneously.
--   **Multiple Visualizations**: Data is presented in various chart types (Monthly, Quarterly, Yearly) for both revenue trends and Year-over-Year (YoY) growth.
+-   **Multiple Visualizations**: Data is presented in various chart types (Monthly, Quarterly, Yearly) for both revenue trends and Year-over-Year (YoY) growth, complete with labeled axes for clarity.
 -   **Interactive Charts**: Toggle the visibility of each company on the charts for focused analysis.
 -   **Tabular Data**: View the raw monthly revenue, YoY percentage change, and Year-to-Date (YTD) revenue in a clear, sortable table.
 
@@ -22,8 +23,10 @@ The application has been refactored into a more robust client-server architectur
 -   **Functionality**:
     -   Provides a search input with autocomplete suggestions powered by the backend's search API.
     -   Captures user selections for companies and a start date.
-    -   Makes a single, streamlined API call per company to the backend's `/api/revenue` endpoint.
-    -   Receives the complete dataset from the backend and uses Chart.js to render analytical charts and populate the data table.
+    -   Makes API calls to the backend for revenue and market capitalization data.
+    -   Uses `Promise.allSettled` to gracefully handle API responses, ensuring the UI remains responsive even if some requests fail.
+    -   Receives the complete dataset from the backend and uses Chart.js to render analytical charts (with labeled axes) and populate the data table.
+    -   Displays market capitalization data formatted in "億" (100M) TWD and "M" (Million) USD for readability.
 
 ### 2. Backend (`server.js`)
 
@@ -31,15 +34,16 @@ The application has been refactored into a more robust client-server architectur
 -   **Technology**: Node.js, Express.js, `sqlite`, `sqlite3`.
 -   **Functionality**:
     -   Serves the static `index.html` file.
-    -   Provides two main API endpoints:
+    -   Provides three main API endpoints:
         -   `GET /api/search-company`: Powers the frontend's autocomplete search box.
-        -   `POST /api/revenue`: The main data orchestration endpoint. It checks the local SQLite database for cached data. If data is missing, it fetches it from the official MOPS API, saves it to the cache, and then returns the complete dataset to the client.
+        -   `POST /api/revenue`: Orchestrates fetching monthly revenue data, using a database cache to avoid redundant API calls.
+        -   `POST /api/market-cap`: Fetches and caches daily market capitalization data, sourcing information from multiple official APIs for robustness.
 
 ### 3. Database (`database.js` & `database.db`)
 
 -   **Technology**: SQLite.
--   **`database.js`**: A module that handles the database connection, and schema initialization for the `companies` and `revenues` tables.
--   **`database.db`**: The physical SQLite database file containing the cached revenue data and the master list of companies.
+-   **`database.js`**: A module that handles the database connection, and schema initialization for the `companies`, `revenues`, and `market_caps` tables.
+-   **`database.db`**: The physical SQLite database file containing the master list of companies and cached data for both revenue and market capitalization.
 
 ### 4. Data Seeding (`seed.js`)
 
@@ -50,10 +54,10 @@ The application has been refactored into a more robust client-server architectur
 | File                      | Description                                                                                                                                                           |
 | ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `index.html`              | The core frontend of the application. Contains all HTML, CSS, and JavaScript for the user interface, charting, and interaction.                                         |
-| `server.js`               | The main backend file. Runs an Express server that serves the frontend, provides API endpoints for search and revenue data, and manages the data caching logic.          |
-| `database.js`             | A helper module for the backend. Manages the SQLite database connection and initializes the required table schemas (`companies`, `revenues`).                             |
+| `server.js`               | The main backend file. Runs an Express server that serves the frontend, provides API endpoints for search, revenue, and market cap data, and manages caching logic.      |
+| `database.js`             | A helper module for the backend. Manages the SQLite database connection and initializes the required table schemas (`companies`, `revenues`, `market_caps`).              |
 | `seed.js`                 | A standalone script to populate the `companies` table in the database from official TSE, TPEx, and ESB data sources. Run this once during setup.                         |
-| `database.db`             | The SQLite database file. Stores the list of all companies and caches all fetched revenue data to prevent redundant API calls.                                          |
+| `database.db`             | The SQLite database file. Stores the list of all companies and caches all fetched revenue and market cap data to prevent redundant API calls.                           |
 | `package.json`            | Defines the project's metadata and lists its Node.js dependencies (e.g., `express`, `sqlite`).                                                                        |
 | `package-lock.json`       | Records the exact versions of the project's dependencies.                                                                                                             |
 | `DESIGN.md`               | The technical design document outlining the architecture and implementation plan for the V2 features.                                                                   |
