@@ -781,17 +781,16 @@
             clearError();
 
             try {
-                const results = await Promise.allSettled([
-                    fetchRevenueData(code1, startDate),
-                    fetchRevenueData(code2, startDate),
-                    fetchMarketCap(code1),
-                    fetchMarketCap(code2)
-                ]);
-
-                const result1 = results[0].status === 'fulfilled' ? results[0].value : null;
-                const result2 = results[1].status === 'fulfilled' ? results[1].value : null;
-                const marketCap1 = results[2].status === 'fulfilled' ? results[2].value : null;
-                const marketCap2 = results[3].status === 'fulfilled' ? results[3].value : null;
+                // Fetch sequentially to prevent hitting the MOPS API concurrently, which triggers the CAPTCHA WAF block
+                const result1 = await fetchRevenueData(code1, startDate);
+                const marketCap1 = await fetchMarketCap(code1);
+                
+                let result2 = null;
+                let marketCap2 = null;
+                if (code2) {
+                    result2 = await fetchRevenueData(code2, startDate);
+                    marketCap2 = await fetchMarketCap(code2);
+                }
 
                 allData1 = result1 ? result1.data : [];
                 allData2 = result2 ? result2.data : [];
