@@ -304,32 +304,45 @@ app.post('/api/revenue', async (req, res) => {
             // 2. If not in cache, fetch from MOPS
             console.log(`[Cache] MISS for ${companyCode} (${year}-${month}). Fetching from MOPS...`);
             const minguoYear = toMinguoYear(year);
-            const payload = {
-                companyId: companyCode,
-                dataType: "2",
-                month: month.toString(),
-                year: minguoYear.toString(),
-                subsidiaryCompanyId: ""
-            };
-
-            const response = await fetch('https://mops.twse.com.tw/mops/api/t05st10_ifrs', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
-                },
-                body: JSON.stringify(payload)
-            });
-
-            if (!response.ok) throw new Error(`MOPS API request failed with status ${response.status}`);
             
-            const rawText = await response.text();
-            if (rawText.trim().startsWith('<')) {
-                 throw new Error('Request blocked by MOPS firewall (CAPTCHA).');
+            let apiResponse = null;
+            for (const dt of ["2", "1"]) { // Try domestic (2) then foreign (1)
+                const payload = {
+                    companyId: companyCode,
+                    dataType: dt,
+                    month: month.toString(),
+                    year: minguoYear.toString(),
+                    subsidiaryCompanyId: ""
+                };
+
+                const response = await fetch('https://mops.twse.com.tw/mops/api/t05st10_ifrs', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) throw new Error(`MOPS API request failed with status ${response.status}`);
+                
+                const rawText = await response.text();
+                if (rawText.trim().startsWith('<')) {
+                     throw new Error('Request blocked by MOPS firewall (CAPTCHA).');
+                }
+
+                apiResponse = JSON.parse(rawText);
+                if (apiResponse.code === 200) {
+                    break; // Success!
+                }
+                
+                // Wait briefly before retrying with another dataType
+                if (dt === "2") {
+                    await sleep(Math.floor(Math.random() * 500) + 200); 
+                }
             }
 
-            const apiResponse = JSON.parse(rawText);
             if (apiResponse.code !== 200) {
                 console.warn(`[MOPS API] Warning for ${companyCode} (${year}-${month}): ${apiResponse.message}`);
                 continue; // Skip this month if API returns an error
