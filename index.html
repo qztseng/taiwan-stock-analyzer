@@ -875,7 +875,7 @@
             }
         }
 
-        function showError(msg) { document.getElementById('errorContainer').innerHTML = `<div class="error-message">❌ ${msg}</div>`; }
+        function showError(msg) { document.getElementById('errorContainer').innerHTML += `<div class="error-message">❌ ${msg}</div>`; }
         function showWarning(msg) { document.getElementById('errorContainer').innerHTML += `<div class="warning-message">⚠️ ${msg}</div>`; }
         function showSuccess(msg) { document.getElementById('errorContainer').innerHTML = `<div class="success-message">✅ ${msg}</div>`; }
         function clearError() { document.getElementById('errorContainer').innerHTML = ''; }
