@@ -1,9 +1,9 @@
-const openDb = require('./database.js');
+const { initializeDatabase } = require('./database.js');
 
 async function clearRevenues() {
   let db;
   try {
-    db = await openDb();
+    db = await initializeDatabase();
     await db.run('DELETE FROM revenues');
     console.log('✅ Revenues table cleared.');
   } catch (error) {

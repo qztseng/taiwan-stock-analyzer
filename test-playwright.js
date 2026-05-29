@@ -15,6 +15,9 @@ const assert = require('assert');
         console.log(`Navigating to: ${pageUrl}`);
         await page.goto(pageUrl);
 
+        console.log('Waiting for initial automatic fetch to complete...');
+        await page.waitForSelector('#fetchBtn:not([disabled])', { timeout: 90000 });
+
         // --- Test Case: Fetch and Compare Two Companies ---
 
         // 1. Fill out Company 1 (6841)

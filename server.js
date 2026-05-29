@@ -10,6 +10,8 @@ app.use(express.static('.'));
 
 // --- Utility Functions ---
 
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
 function toMinguoYear(year) {
     return year - 1911;
 }
@@ -284,7 +286,8 @@ app.post('/api/revenue', async (req, res) => {
     let companyName = '';
 
     try {
-        const results = await Promise.all(monthsToFetch.map(async ([year, month]) => {
+        const results = [];
+        for (const [year, month] of monthsToFetch) {
             // 1. Check cache first
             const cached = await db.get(
                 'SELECT * FROM revenues WHERE company_code = ? AND year = ? AND month = ?',
@@ -294,7 +297,8 @@ app.post('/api/revenue', async (req, res) => {
             if (cached) {
                 console.log(`[Cache] HIT for ${companyCode} (${year}-${month})`);
                 if(cached.companyName && !companyName) companyName = cached.companyName;
-                return { ...cached, source: 'cache' };
+                results.push({ ...cached, source: 'cache' });
+                continue;
             }
 
             // 2. If not in cache, fetch from MOPS
@@ -328,7 +332,7 @@ app.post('/api/revenue', async (req, res) => {
             const apiResponse = JSON.parse(rawText);
             if (apiResponse.code !== 200) {
                 console.warn(`[MOPS API] Warning for ${companyCode} (${year}-${month}): ${apiResponse.message}`);
-                return null; // Skip this month if API returns an error
+                continue; // Skip this month if API returns an error
             }
 
             const parsedData = parseAPIResponse(apiResponse, year, month);
@@ -341,11 +345,12 @@ app.post('/api/revenue', async (req, res) => {
                     companyCode, parsedData.year, parsedData.month, parsedData.revenue, parsedData.yoy_percent, parsedData.ytd_revenue
                 );
                 console.log(`[Cache] STORED for ${companyCode} (${year}-${month})`);
-                return { ...parsedData, source: 'api' };
+                results.push({ ...parsedData, source: 'api' });
+                
+                // ADD A DELAY BEFORE THE NEXT ITERATION (500ms to 1.5 seconds)
+                await sleep(Math.floor(Math.random() * 1000) + 500); 
             }
-            
-            return null;
-        }));
+        }
 
         const finalResults = results.filter(r => r !== null);
         const firstValidResult = finalResults.find(r => r.companyName);
